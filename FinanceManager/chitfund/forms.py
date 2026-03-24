@@ -18,10 +18,26 @@ class ClientForm(forms.ModelForm):
 
     class Meta:
         model = Client
-        fields = ["name", "phone", "address", "monthly_amount", "is_active"]
+        fields = ["name", "phone", "address", "monthly_amount", "status", "lifted_month"]
         widgets = {
             "address": forms.Textarea(attrs={"rows": 3}),
+            "lifted_month": forms.DateInput(attrs={"type": "month"}, format="%Y-%m"),
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["lifted_month"].input_formats = ["%Y-%m", "%Y-%m-%d"]
+
+    def clean(self):
+        cleaned_data = super().clean()
+        status = cleaned_data.get("status")
+        lifted_month = cleaned_data.get("lifted_month")
+
+        if status == Client.LiftStatus.LIFTED and not lifted_month:
+            self.add_error("lifted_month", "Lifting month is required for lifted clients.")
+        if status == Client.LiftStatus.NOT_LIFTED:
+            cleaned_data["lifted_month"] = None
+        return cleaned_data
 
 
 class MonthSelectionForm(forms.Form):

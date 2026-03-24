@@ -5,8 +5,8 @@ from .models import Client, MonthlyPayment
 
 @admin.register(Client)
 class ClientAdmin(admin.ModelAdmin):
-    list_display = ("name", "phone", "monthly_amount", "is_active", "joined_date")
-    list_filter = ("is_active", "joined_date")
+    list_display = ("name", "phone", "monthly_amount", "status", "lifted_month", "joined_date")
+    list_filter = ("status", "joined_date")
     search_fields = ("name", "phone")
 
 

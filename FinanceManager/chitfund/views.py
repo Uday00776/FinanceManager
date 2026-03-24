@@ -25,20 +25,28 @@ def _parse_month(month_param):
         return _first_day_of_current_month()
 
 
+def _payable_amount_for_month(client, payment_month):
+    if (
+        client.status == Client.LiftStatus.LIFTED
+        and client.lifted_month
+        and payment_month > client.lifted_month
+    ):
+        return Decimal("12000")
+    return client.monthly_amount
+
+
 def dashboard(request):
     selected_month = _parse_month(request.GET.get("month"))
-    active_clients = Client.objects.filter(is_active=True)
+    clients = Client.objects.all()
 
-    for client in active_clients:
+    for client in clients:
         MonthlyPayment.objects.get_or_create(
             client=client,
             month=selected_month,
             defaults={"status": MonthlyPayment.PaymentStatus.UNPAID, "amount_paid": 0},
         )
 
-    payments = MonthlyPayment.objects.filter(
-        month=selected_month, client__is_active=True
-    ).select_related("client")
+    payments = MonthlyPayment.objects.filter(month=selected_month).select_related("client")
     stats = payments.aggregate(
         total_clients=Count("id"),
         paid_clients=Count("id", filter=Q(status=MonthlyPayment.PaymentStatus.PAID)),
@@ -50,7 +58,10 @@ def dashboard(request):
     paid_clients = stats["paid_clients"] or 0
     unpaid_clients = stats["unpaid_clients"] or 0
     total_collected = stats["total_collected"] or Decimal("0")
-    expected_amount = active_clients.aggregate(total=Sum("monthly_amount"))["total"] or Decimal("0")
+    expected_amount = sum(
+        (_payable_amount_for_month(payment.client, selected_month) for payment in payments),
+        start=Decimal("0"),
+    )
     pending_amount = expected_amount - total_collected
 
     context = {
@@ -76,7 +87,8 @@ def client_list(request):
         "name": "name",
         "phone": "phone",
         "monthly_amount": "monthly_amount",
-        "is_active": "is_active",
+        "status": "status",
+        "lifted_month": "lifted_month",
         "joined_date": "joined_date",
     }
     sort_field = allowed_sort_fields.get(sort_by, "name")
@@ -127,13 +139,14 @@ def client_edit(request, client_id):
 @require_POST
 def toggle_payment_status(request, payment_id):
     payment = get_object_or_404(MonthlyPayment, id=payment_id)
+    payable_amount = _payable_amount_for_month(payment.client, payment.month)
     if payment.status == MonthlyPayment.PaymentStatus.PAID:
         payment.status = MonthlyPayment.PaymentStatus.UNPAID
         payment.amount_paid = 0
         payment.paid_date = None
     else:
         payment.status = MonthlyPayment.PaymentStatus.PAID
-        payment.amount_paid = payment.client.monthly_amount
+        payment.amount_paid = payable_amount
         payment.paid_date = date.today()
     payment.save()
     return redirect(f"{request.META.get('HTTP_REFERER', '/')}")

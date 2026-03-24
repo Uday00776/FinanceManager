@@ -45,7 +45,9 @@
                 <th>Name</th>
                 <th>Phone</th>
                 <th>Address</th>
+                <th>Client Status</th>
                 <th>Status</th>
+                <th>Payable</th>
                 <th>Amount</th>
                 <th>Paid Date</th>
                 <th>Action</th>
@@ -57,10 +59,18 @@
                 <td>{{ payment.client.name }}</td>
                 <td>{{ payment.client.phone }}</td>
                 <td>{{ payment.client.address }}</td>
+                <td>{{ payment.client.get_status_display }}</td>
                 <td>
                     <span class="pill {% if payment.status == 'PAID' %}paid{% else %}unpaid{% endif %}">
                         {{ payment.status }}
                     </span>
+                </td>
+                <td>
+                    {% if payment.client.status == "LIFTED" and payment.client.lifted_month and payment.month > payment.client.lifted_month %}
+                        Rs. 12000
+                    {% else %}
+                        Rs. {{ payment.client.monthly_amount }}
+                    {% endif %}
                 </td>
                 <td>Rs. {{ payment.amount_paid }}</td>
                 <td>{{ payment.paid_date|default:"-" }}</td>
@@ -75,7 +85,7 @@
             </tr>
             {% empty %}
             <tr>
-                <td colspan="7">No active clients found.</td>
+                <td colspan="9">No clients found.</td>
             </tr>
             {% endfor %}
         </tbody>
