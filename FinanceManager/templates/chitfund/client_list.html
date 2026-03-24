@@ -1,0 +1,60 @@
+{% extends "chitfund/base.html" %}
+
+{% block content %}
+<section class="toolbar">
+    <h2>Clients</h2>
+    <div class="actions">
+        <form method="get" class="search-form">
+            <input type="text" name="q" value="{{ query }}" placeholder="Search name or phone">
+            <select name="sort_by">
+                <option value="name" {% if sort_by == "name" %}selected{% endif %}>Sort: Name</option>
+                <option value="phone" {% if sort_by == "phone" %}selected{% endif %}>Sort: Phone</option>
+                <option value="monthly_amount" {% if sort_by == "monthly_amount" %}selected{% endif %}>Sort: Monthly Amount</option>
+                <option value="is_active" {% if sort_by == "is_active" %}selected{% endif %}>Sort: Active Status</option>
+                <option value="joined_date" {% if sort_by == "joined_date" %}selected{% endif %}>Sort: Joined Date</option>
+            </select>
+            <select name="sort_order">
+                <option value="asc" {% if sort_order == "asc" %}selected{% endif %}>Asc</option>
+                <option value="desc" {% if sort_order == "desc" %}selected{% endif %}>Desc</option>
+            </select>
+            <button type="submit">Search</button>
+        </form>
+        <a class="btn-link" href="{% url 'client-create' %}">+ Add Client</a>
+    </div>
+</section>
+
+<section class="table-wrap">
+    <table>
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>Name</th>
+                <th>Phone</th>
+                <th>Address</th>
+                <th>Monthly Amount</th>
+                <th>Active</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for client in clients %}
+            <tr>
+                <td>{{ forloop.counter }}</td>
+                <td>{{ client.name }}</td>
+                <td>{{ client.phone }}</td>
+                <td>{{ client.address }}</td>
+                <td>Rs. {{ client.monthly_amount }}</td>
+                <td>{{ client.is_active|yesno:"Yes,No" }}</td>
+                <td>
+                    <a href="{% url 'client-edit' client.id %}">Edit</a>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="7">No clients available.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</section>
+{% endblock %}

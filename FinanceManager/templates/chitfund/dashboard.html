@@ -1,0 +1,84 @@
+{% extends "chitfund/base.html" %}
+
+{% block content %}
+<section class="toolbar">
+    <h2>Monthly Dashboard</h2>
+    <form method="get" class="month-form">
+        <label for="month">Select month</label>
+        <input type="month" id="month" name="month" value="{{ selected_month|date:'Y-m' }}">
+        <button type="submit">View</button>
+    </form>
+</section>
+
+<section class="stats-grid">
+    <article class="stat-card">
+        <p>Total Clients</p>
+        <h3>{{ total_clients }}</h3>
+    </article>
+    <article class="stat-card success">
+        <p>Paid</p>
+        <h3>{{ paid_clients }}</h3>
+    </article>
+    <article class="stat-card danger">
+        <p>Unpaid</p>
+        <h3>{{ unpaid_clients }}</h3>
+    </article>
+    <article class="stat-card">
+        <p>Collected</p>
+        <h3>Rs. {{ total_collected }}</h3>
+    </article>
+    <article class="stat-card">
+        <p>Expected</p>
+        <h3>Rs. {{ expected_amount }}</h3>
+    </article>
+    <article class="stat-card warning">
+        <p>Pending</p>
+        <h3>Rs. {{ pending_amount }}</h3>
+    </article>
+</section>
+
+<section class="table-wrap">
+    <h3>Payment Status - {{ selected_month|date:"F Y" }}</h3>
+    <table>
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Phone</th>
+                <th>Address</th>
+                <th>Status</th>
+                <th>Amount</th>
+                <th>Paid Date</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for payment in payments %}
+            <tr>
+                <td>{{ payment.client.name }}</td>
+                <td>{{ payment.client.phone }}</td>
+                <td>{{ payment.client.address }}</td>
+                <td>
+                    <span class="pill {% if payment.status == 'PAID' %}paid{% else %}unpaid{% endif %}">
+                        {{ payment.status }}
+                    </span>
+                </td>
+                <td>Rs. {{ payment.amount_paid }}</td>
+                <td>{{ payment.paid_date|default:"-" }}</td>
+                <td>
+                    <form method="post" action="{% url 'toggle-payment' payment.id %}">
+                        {% csrf_token %}
+                        <button class="small-btn" type="submit">
+                            {% if payment.status == "PAID" %}Mark Unpaid{% else %}Mark Paid{% endif %}
+                        </button>
+                    </form>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="7">No active clients found.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</section>
+{% endblock %}

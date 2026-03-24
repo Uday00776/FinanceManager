@@ -1,0 +1,30 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FinanceManager</title>
+    <link rel="stylesheet" href="{% static 'css/styles.css' %}">
+</head>
+<body>
+    <header class="header">
+        <div class="container nav">
+            <h1>FinanceManager</h1>
+            <nav>
+                <a href="{% url 'dashboard' %}">Dashboard</a>
+                <a href="{% url 'client-list' %}">Clients</a>
+                <a href="/admin/">Admin</a>
+            </nav>
+        </div>
+    </header>
+    <main class="container main">
+        {% if messages %}
+            {% for message in messages %}
+                <div class="message">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+        {% block content %}{% endblock %}
+    </main>
+</body>
+</html>
