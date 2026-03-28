@@ -1,4 +1,5 @@
 from django.db import models
+from django.contrib.auth.models import User
 from django.utils import timezone
 
 
@@ -59,4 +60,17 @@ class MonthlyPayment(models.Model):
     def __str__(self):
         return f"{self.client.name} - {self.month:%Y-%m} - {self.status}"
 
-# Create your models here.
+
+class DailyExpense(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="daily_expenses")
+    expense_date = models.DateField(default=timezone.localdate)
+    category = models.CharField(max_length=80)
+    description = models.CharField(max_length=255, blank=True)
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-expense_date", "-created_at"]
+
+    def __str__(self):
+        return f"{self.expense_date} - {self.category} - {self.amount}"

@@ -1,0 +1,51 @@
+{% extends "chitfund/base.html" %}
+
+{% block content %}
+<section class="toolbar">
+    <h2>Daily Expenses</h2>
+    <div class="actions">
+        <form method="get" class="month-form">
+            <label for="month">Month</label>
+            <input type="month" id="month" name="month" value="{{ selected_month|date:'Y-m' }}">
+            <button type="submit">View</button>
+        </form>
+        <a class="btn-link" href="{% url 'daily-expense-create' %}">+ Add Expense</a>
+    </div>
+</section>
+
+<section class="stats-grid">
+    <article class="stat-card warning">
+        <p>Total Expense - {{ selected_month|date:"F Y" }}</p>
+        <h3>Rs. {{ total_expense }}</h3>
+    </article>
+</section>
+
+<section class="table-wrap">
+    <table>
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>Date</th>
+                <th>Category</th>
+                <th>Description</th>
+                <th>Amount</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for expense in expenses %}
+            <tr>
+                <td>{{ forloop.counter }}</td>
+                <td>{{ expense.expense_date }}</td>
+                <td>{{ expense.category }}</td>
+                <td>{{ expense.description|default:"-" }}</td>
+                <td>Rs. {{ expense.amount }}</td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="5">No expenses found for this month.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</section>
+{% endblock %}

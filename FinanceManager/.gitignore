@@ -20,3 +20,5 @@ media/
 # ---- OS / Editor ----
 .DS_Store
 .idea/
+
+FinanceManager/db.sqlite3

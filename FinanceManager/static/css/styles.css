@@ -99,10 +99,10 @@ button,
 .btn-link {
     background: var(--primary);
     color: #fff;
-    border: none;
     cursor: pointer;
     padding: 0.55rem 0.85rem;
     border-radius: 8px;
+    margin-top: 10px;
 }
 
 .btn-link.muted {
@@ -216,3 +216,4 @@ th {
 .error {
     color: var(--danger);
 }
+

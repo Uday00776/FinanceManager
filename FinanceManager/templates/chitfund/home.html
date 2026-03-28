@@ -1,0 +1,20 @@
+{% extends "chitfund/base.html" %}
+
+{% block content %}
+<section class="toolbar">
+    <h2>Welcome, {{ request.user.username }}</h2>
+</section>
+
+<section class="stats-grid">
+    <article class="stat-card">
+        <p>Manage member details and monthly payments.</p>
+        <h3>ChitFund Management</h3>
+        <p><a class="btn-link" href="{% url 'dashboard' %}">Open ChitFund</a></p>
+    </article>
+    <article class="stat-card">
+        <p>Record and track your day-to-day spending.</p>
+        <h3>Daily Expense</h3>
+        <p><a class="btn-link" href="{% url 'daily-expense-list' %}">Open Expenses</a></p>
+    </article>
+</section>
+{% endblock %}

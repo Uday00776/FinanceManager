@@ -1,0 +1,24 @@
+{% extends "chitfund/base.html" %}
+
+{% block content %}
+<section class="form-card">
+    <h2>Login</h2>
+    <form method="post">
+        {% csrf_token %}
+        {{ form.non_field_errors }}
+        {% for field in form %}
+            <div class="form-group">
+                <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                {{ field }}
+                {% if field.errors %}
+                    <small class="error">{{ field.errors|join:", " }}</small>
+                {% endif %}
+            </div>
+        {% endfor %}
+        <div class="actions">
+            <button type="submit">Login</button>
+            <a class="btn-link muted" href="{% url 'signup' %}">Create account</a>
+        </div>
+    </form>
+</section>
+{% endblock %}

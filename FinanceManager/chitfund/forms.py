@@ -1,7 +1,10 @@
 from django import forms
+from django.contrib.auth import authenticate
+from django.contrib.auth.forms import UserCreationForm
+from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 
-from .models import Client
+from .models import Client, DailyExpense
 
 
 class ClientForm(forms.ModelForm):
@@ -45,3 +48,60 @@ class MonthSelectionForm(forms.Form):
         input_formats=["%Y-%m"],
         widget=forms.DateInput(attrs={"type": "month"}),
     )
+
+
+class SignUpForm(UserCreationForm):
+    email = forms.EmailField(required=True)
+
+    class Meta:
+        model = User
+        fields = ("username", "email", "password1", "password2")
+
+
+class EmailOrUsernameAuthenticationForm(forms.Form):
+    username = forms.CharField(label="Username or Email")
+    password = forms.CharField(widget=forms.PasswordInput)
+
+    error_messages = {
+        "invalid_login": "Please enter a correct username/email and password.",
+        "inactive": "This account is inactive.",
+    }
+
+    def __init__(self, request=None, *args, **kwargs):
+        self.request = request
+        self.user_cache = None
+        super().__init__(*args, **kwargs)
+
+    def clean(self):
+        username_input = self.cleaned_data.get("username")
+        password = self.cleaned_data.get("password")
+
+        if username_input and password:
+            lookup_username = username_input
+            if "@" in username_input:
+                user = User.objects.filter(email__iexact=username_input).first()
+                if user:
+                    lookup_username = user.username
+            self.user_cache = authenticate(
+                self.request, username=lookup_username, password=password
+            )
+            if self.user_cache is None:
+                raise ValidationError(
+                    self.error_messages["invalid_login"], code="invalid_login"
+                )
+            if not self.user_cache.is_active:
+                raise ValidationError(self.error_messages["inactive"], code="inactive")
+        return self.cleaned_data
+
+    def get_user(self):
+        return self.user_cache
+
+
+class DailyExpenseForm(forms.ModelForm):
+    class Meta:
+        model = DailyExpense
+        fields = ["expense_date", "category", "description", "amount"]
+        widgets = {
+            "expense_date": forms.DateInput(attrs={"type": "date"}),
+            "description": forms.Textarea(attrs={"rows": 2}),
+        }
