@@ -1,8 +1,8 @@
 # ---- Django / Python ----
-__pycache__/
+**/__pycache__/
 *.py[cod]
 *.sqlite3
-db.sqlite3
+**/db.sqlite3
 db.sqlite3-journal
 
 # ---- Local env / secrets ----

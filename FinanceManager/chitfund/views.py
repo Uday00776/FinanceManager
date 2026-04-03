@@ -78,16 +78,31 @@ def home(request):
 @login_required
 def dashboard(request):
     selected_month = _parse_month(request.GET.get("month"))
-    clients = Client.objects.all()
+    clients = Client.objects.filter(user=request.user).filter(
+        Q(joined_date__year__lt=selected_month.year) |
+        Q(joined_date__year=selected_month.year, joined_date__month__lte=selected_month.month)
+    )
 
-    for client in clients:
-        MonthlyPayment.objects.get_or_create(
-            client=client,
-            month=selected_month,
-            defaults={"status": MonthlyPayment.PaymentStatus.UNPAID, "amount_paid": 0},
+    existing_payments = MonthlyPayment.objects.filter(month=selected_month)
+    existing_client_ids = set(existing_payments.values_list('client_id', flat=True))
+
+    missing_clients = [c for c in clients if c.id not in existing_client_ids]
+    if missing_clients:
+        MonthlyPayment.objects.bulk_create(
+            [
+                MonthlyPayment(
+                    client=client,
+                    month=selected_month,
+                    status=MonthlyPayment.PaymentStatus.UNPAID,
+                    amount_paid=0,
+                )
+                for client in missing_clients
+            ]
         )
 
-    payments = MonthlyPayment.objects.filter(month=selected_month).select_related("client")
+    payments = MonthlyPayment.objects.filter(
+        month=selected_month, client__in=clients
+    ).select_related("client")
     stats = payments.aggregate(
         total_clients=Count("id"),
         paid_clients=Count("id", filter=Q(status=MonthlyPayment.PaymentStatus.PAID)),
@@ -120,7 +135,7 @@ def dashboard(request):
 
 @login_required
 def client_list(request):
-    clients = Client.objects.all()
+    clients = Client.objects.filter(user=request.user)
     query = request.GET.get("q")
     sort_by = request.GET.get("sort_by", "name")
     sort_order = request.GET.get("sort_order", "asc")
@@ -158,7 +173,9 @@ def client_create(request):
     if request.method == "POST":
         form = ClientForm(request.POST)
         if form.is_valid():
-            form.save()
+            client = form.save(commit=False)
+            client.user = request.user
+            client.save()
             messages.success(request, "Client added successfully.")
             return redirect("client-list")
     else:
@@ -168,7 +185,7 @@ def client_create(request):
 
 @login_required
 def client_edit(request, client_id):
-    client = get_object_or_404(Client, id=client_id)
+    client = get_object_or_404(Client, id=client_id, user=request.user)
     if request.method == "POST":
         form = ClientForm(request.POST, instance=client)
         if form.is_valid():
@@ -183,7 +200,7 @@ def client_edit(request, client_id):
 @require_POST
 @login_required
 def toggle_payment_status(request, payment_id):
-    payment = get_object_or_404(MonthlyPayment, id=payment_id)
+    payment = get_object_or_404(MonthlyPayment, id=payment_id, client__user=request.user)
     payable_amount = _payable_amount_for_month(payment.client, payment.month)
     if payment.status == MonthlyPayment.PaymentStatus.PAID:
         payment.status = MonthlyPayment.PaymentStatus.UNPAID

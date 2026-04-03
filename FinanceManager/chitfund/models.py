@@ -8,6 +8,8 @@ class Client(models.Model):
         NOT_LIFTED = "NOT_LIFTED", "Not Lifted"
         LIFTED = "LIFTED", "Lifted"
 
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="clients", default=1)
+
     name = models.CharField(max_length=120)
     phone = models.CharField(max_length=15)
     address = models.TextField()

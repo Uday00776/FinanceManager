@@ -12,8 +12,13 @@ class ClientForm(forms.ModelForm):
         """
         Allow duplicate phone numbers even if stale schema metadata is cached.
         """
+        if getattr(self, "_errors", None) is None:
+            # Requires full_clean/is_valid to be called first to populate _errors
+            return
+
         exclude = self._get_validation_exclusions()
-        exclude.add("phone")
+        if "phone" not in exclude:
+            exclude.add("phone")
         try:
             self.instance.validate_unique(exclude=exclude)
         except ValidationError as exc:
@@ -53,9 +58,9 @@ class MonthSelectionForm(forms.Form):
 class SignUpForm(UserCreationForm):
     email = forms.EmailField(required=True)
 
-    class Meta:
+    class Meta(UserCreationForm.Meta):
         model = User
-        fields = ("username", "email", "password1", "password2")
+        fields = ("username", "email")
 
 
 class EmailOrUsernameAuthenticationForm(forms.Form):
