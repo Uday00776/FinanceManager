@@ -15,6 +15,7 @@ from .forms import (
     SignUpForm,
 )
 from .models import Client, DailyExpense, MonthlyPayment
+from chitfund.ml.risk_predictor import risk_predictor
 
 
 def _first_day_of_current_month():
@@ -120,6 +121,13 @@ def dashboard(request):
     )
     pending_amount = expected_amount - total_collected
 
+    # AI Risk insights
+    high_risk_count = 0
+    for client in clients:
+        risk_info = risk_predictor.predict_risk(client.id)
+        if risk_info.get("level") == "High":
+            high_risk_count += 1
+
     context = {
         "selected_month": selected_month,
         "payments": payments,
@@ -129,6 +137,7 @@ def dashboard(request):
         "total_collected": total_collected,
         "pending_amount": pending_amount,
         "expected_amount": expected_amount,
+        "high_risk_count": high_risk_count,
     }
     return render(request, "chitfund/dashboard.html", context)
 
@@ -154,7 +163,11 @@ def client_list(request):
 
     if query:
         clients = clients.filter(Q(name__icontains=query) | Q(phone__icontains=query))
-    clients = clients.order_by(sort_field)
+    clients = list(clients.order_by(sort_field))
+
+    # Add AI Risk predictions
+    for client in clients:
+        client.risk = risk_predictor.predict_risk(client.id)
 
     return render(
         request,
