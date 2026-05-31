@@ -1,18 +1,24 @@
 {% extends "chitfund/base.html" %}
 
 {% block content %}
-<div class="space-y-6">
+<div id="dashboard-container" class="space-y-6">
 
     <!-- Header Section -->
     <div class="sm:flex sm:items-center sm:justify-between">
         <div>
             <h2 class="text-2xl font-bold leading-7 text-gray-900 dark:text-white sm:truncate sm:tracking-tight transition-colors">
-                Monthly Dashboard
+                {{ chit_fund.name }} Dashboard
             </h2>
             <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Overview of client payments for {{ selected_month|date:"F Y" }}</p>
         </div>
         
-        <div class="mt-4 sm:ml-4 sm:mt-0 flex items-center space-x-3">
+        <div class="mt-4 sm:ml-4 sm:mt-0 flex flex-wrap items-center gap-3">
+            <a href="{% url 'chitfund-management' %}" class="inline-flex items-center rounded-md bg-white dark:bg-gray-700 px-3 py-2 text-sm font-semibold text-gray-900 dark:text-gray-200 shadow-sm ring-1 ring-inset ring-gray-300 dark:ring-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors">
+                All Chit Funds
+            </a>
+            <a href="{% url 'client-list' chit_fund.slug %}" class="inline-flex items-center rounded-md bg-primary px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-primary-hover transition-colors">
+                Clients
+            </a>
             <form method="get" class="flex items-center space-x-2 bg-white dark:bg-gray-800 rounded-md shadow-sm border border-gray-300 dark:border-gray-700 px-3 py-2 transition-colors">
                 <label for="month" class="text-sm font-medium text-gray-700 dark:text-gray-300 whitespace-nowrap">Select month:</label>
                 <input type="month" id="month" name="month" value="{{ selected_month|date:'Y-m' }}" 
@@ -132,17 +138,13 @@
                                     Rs. {{ payment.amount_paid }}
                                 </td>
                                 <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-400">
-                                    {% if payment.client.status == "LIFTED" and payment.client.lifted_month and payment.month > payment.client.lifted_month %}
-                                        Rs. 12000
-                                    {% else %}
-                                        Rs. {{ payment.client.monthly_amount }}
-                                    {% endif %}
+                                    Rs. {{ payment.payable_amount }}
                                 </td>
                                 <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-400">
                                     {{ payment.paid_date|default:"-" }}
                                 </td>
                                 <td class="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
-                                    <form method="post" action="{% url 'toggle-payment' payment.id %}">
+                                    <form method="post" action="{% url 'toggle-payment' payment.id %}" data-toggle-payment-form>
                                         {% csrf_token %}
                                         <button type="submit" class="inline-flex items-center rounded bg-white dark:bg-gray-700 px-2.5 py-1.5 text-xs font-semibold text-gray-900 dark:text-gray-200 shadow-sm ring-1 ring-inset ring-gray-300 dark:ring-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors">
                                             {% if payment.status == "PAID" %}Mark Unpaid{% else %}Mark Paid{% endif %}
@@ -164,4 +166,50 @@
         </div>
     </div>
 </div>
+
+<script>
+document.addEventListener('submit', function(e) {
+    const form = e.target.closest('[data-toggle-payment-form]');
+    if (!form) return;
+    
+    e.preventDefault();
+    
+    // Disable the button to prevent multiple submissions
+    const button = form.querySelector('button');
+    if (button) {
+        button.disabled = true;
+        button.style.opacity = '0.5';
+    }
+    
+    const formData = new FormData(form);
+    
+    fetch(form.action, {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Network response was not ok');
+        }
+        return response.text();
+    })
+    .then(html => {
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, 'text/html');
+        const newContent = doc.getElementById('dashboard-container');
+        const oldContent = document.getElementById('dashboard-container');
+        if (newContent && oldContent) {
+            oldContent.innerHTML = newContent.innerHTML;
+        }
+    })
+    .catch(error => {
+        console.error('Error toggling payment status:', error);
+        // Fallback to normal form submission if fetch fails
+        form.submit();
+    });
+});
+</script>
 {% endblock %}

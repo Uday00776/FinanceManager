@@ -5,8 +5,16 @@ from .models import Client, DailyExpense, MonthlyPayment
 
 @admin.register(Client)
 class ClientAdmin(admin.ModelAdmin):
-    list_display = ("name", "phone", "monthly_amount", "status", "lifted_month", "joined_date")
-    list_filter = ("status", "joined_date")
+    list_display = (
+        "name",
+        "phone",
+        "chit_fund",
+        "monthly_amount",
+        "status",
+        "lifted_month",
+        "joined_date",
+    )
+    list_filter = ("chit_fund", "status", "joined_date")
     search_fields = ("name", "phone")
 
 

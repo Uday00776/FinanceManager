@@ -4,12 +4,18 @@
 <div class="sm:flex sm:items-center sm:justify-between mb-8">
     <div>
         <h2 class="text-2xl font-bold leading-7 text-gray-900 dark:text-white sm:truncate sm:tracking-tight transition-colors">
-            Clients Management
+            {{ chit_fund.name }} Clients
         </h2>
         <p class="mt-1 text-sm text-gray-500 dark:text-gray-400 transition-colors">A list of all clients in the chit fund including their status, and monthly amounts.</p>
     </div>
-    <div class="mt-4 sm:ml-4 sm:mt-0 flex">
-        <a href="{% url 'client-create' %}" class="inline-flex items-center justify-center rounded-md bg-primary px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-primary-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary transition-colors">
+    <div class="mt-4 sm:ml-4 sm:mt-0 flex flex-wrap gap-3">
+        <a href="{% url 'chitfund-management' %}" class="inline-flex items-center justify-center rounded-md bg-white dark:bg-gray-700 px-3 py-2 text-sm font-semibold text-gray-900 dark:text-gray-200 shadow-sm ring-1 ring-inset ring-gray-300 dark:ring-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors">
+            All Chit Funds
+        </a>
+        <a href="{% url 'dashboard' chit_fund.slug %}" class="inline-flex items-center justify-center rounded-md bg-white dark:bg-gray-700 px-3 py-2 text-sm font-semibold text-gray-900 dark:text-gray-200 shadow-sm ring-1 ring-inset ring-gray-300 dark:ring-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors">
+            Dashboard
+        </a>
+        <a href="{% url 'client-create' chit_fund.slug %}" class="inline-flex items-center justify-center rounded-md bg-primary px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-primary-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary transition-colors">
             <!-- Plus Icon -->
             <svg class="-ml-0.5 mr-1.5 h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
               <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" />
@@ -108,12 +114,12 @@
                             </td>
                             
                             <td class="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
-                                <a href="{% url 'client-edit' client.id %}" class="text-primary dark:text-indigo-400 hover:text-primary-hover dark:hover:text-indigo-300 transition-colors">Edit<span class="sr-only">, {{ client.name }}</span></a>
+                                <a href="{% url 'client-edit' chit_fund.slug client.id %}" class="text-primary dark:text-indigo-400 hover:text-primary-hover dark:hover:text-indigo-300 transition-colors">Edit<span class="sr-only">, {{ client.name }}</span></a>
                             </td>
                         </tr>
                         {% empty %}
                         <tr>
-                            <td colspan="8" class="whitespace-nowrap px-4 py-8 text-center text-sm text-gray-500 dark:text-gray-400">
+                            <td colspan="9" class="whitespace-nowrap px-4 py-8 text-center text-sm text-gray-500 dark:text-gray-400">
                                 No clients found. Adjust your search or add a new client.
                             </td>
                         </tr>

@@ -8,7 +8,17 @@ class Client(models.Model):
         NOT_LIFTED = "NOT_LIFTED", "Not Lifted"
         LIFTED = "LIFTED", "Lifted"
 
+    class ChitFund(models.TextChoices):
+        FIVE_LAKH = "FIVE_LAKH", "5 lakh chitti"
+        TWO_LAKH = "TWO_LAKH", "2 lakh chitti"
+        NEW_TWO_LAKH = "NEW_TWO_LAKH", "new 2 lakh chitti"
+
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="clients", default=1)
+    chit_fund = models.CharField(
+        max_length=20,
+        choices=ChitFund.choices,
+        default=ChitFund.TWO_LAKH,
+    )
 
     name = models.CharField(max_length=120)
     phone = models.CharField(max_length=15)

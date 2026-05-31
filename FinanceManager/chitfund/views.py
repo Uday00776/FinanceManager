@@ -4,6 +4,7 @@ from decimal import Decimal
 from django.contrib import messages
 from django.contrib.auth import login, logout
 from django.contrib.auth.decorators import login_required
+from django.http import Http404
 from django.db.models import Count, Q, Sum
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
@@ -16,6 +17,42 @@ from .forms import (
 )
 from .models import Client, DailyExpense, MonthlyPayment
 from chitfund.ml.risk_predictor import risk_predictor
+
+
+CHIT_FUNDS = [
+    {
+        "slug": "5-lakh-chitti",
+        "key": Client.ChitFund.FIVE_LAKH,
+        "name": "5 lakh chitti",
+        "description": "Track members and monthly collections for the 5 lakh chit.",
+        "accent": "indigo",
+    },
+    {
+        "slug": "2-lakh-chitti",
+        "key": Client.ChitFund.TWO_LAKH,
+        "name": "2 lakh chitti",
+        "description": "Existing client details and payment history are kept here.",
+        "accent": "green",
+    },
+    {
+        "slug": "new-2-lakh-chitti",
+        "key": Client.ChitFund.NEW_TWO_LAKH,
+        "name": "new 2 lakh chitti",
+        "description": "Start the new 2 lakh chit with a fresh client and payment list.",
+        "accent": "orange",
+    },
+]
+
+
+def _funds_by_slug():
+    return {fund["slug"]: fund for fund in CHIT_FUNDS}
+
+
+def _get_chit_fund(fund_slug):
+    try:
+        return _funds_by_slug()[fund_slug]
+    except KeyError as exc:
+        raise Http404("Chit fund not found.") from exc
 
 
 def _first_day_of_current_month():
@@ -34,6 +71,8 @@ def _parse_month(month_param):
 
 
 def _payable_amount_for_month(client, payment_month):
+    if client.chit_fund == Client.ChitFund.NEW_TWO_LAKH:
+        return client.monthly_amount
     if (
         client.status == Client.LiftStatus.LIFTED
         and client.lifted_month
@@ -77,14 +116,22 @@ def home(request):
 
 
 @login_required
-def dashboard(request):
+def chitfund_management(request):
+    return render(request, "chitfund/chitfund_management.html", {"chit_funds": CHIT_FUNDS})
+
+
+@login_required
+def dashboard(request, fund_slug):
+    chit_fund = _get_chit_fund(fund_slug)
     selected_month = _parse_month(request.GET.get("month"))
-    clients = Client.objects.filter(user=request.user).filter(
+    clients = Client.objects.filter(user=request.user, chit_fund=chit_fund["key"]).filter(
         Q(joined_date__year__lt=selected_month.year) |
         Q(joined_date__year=selected_month.year, joined_date__month__lte=selected_month.month)
     )
 
-    existing_payments = MonthlyPayment.objects.filter(month=selected_month)
+    existing_payments = MonthlyPayment.objects.filter(
+        month=selected_month, client__user=request.user, client__chit_fund=chit_fund["key"]
+    )
     existing_client_ids = set(existing_payments.values_list('client_id', flat=True))
 
     missing_clients = [c for c in clients if c.id not in existing_client_ids]
@@ -104,6 +151,9 @@ def dashboard(request):
     payments = MonthlyPayment.objects.filter(
         month=selected_month, client__in=clients
     ).select_related("client")
+    for payment in payments:
+        payment.payable_amount = _payable_amount_for_month(payment.client, selected_month)
+
     stats = payments.aggregate(
         total_clients=Count("id"),
         paid_clients=Count("id", filter=Q(status=MonthlyPayment.PaymentStatus.PAID)),
@@ -116,7 +166,7 @@ def dashboard(request):
     unpaid_clients = stats["unpaid_clients"] or 0
     total_collected = stats["total_collected"] or Decimal("0")
     expected_amount = sum(
-        (_payable_amount_for_month(payment.client, selected_month) for payment in payments),
+        (payment.payable_amount for payment in payments),
         start=Decimal("0"),
     )
     pending_amount = expected_amount - total_collected
@@ -138,13 +188,15 @@ def dashboard(request):
         "pending_amount": pending_amount,
         "expected_amount": expected_amount,
         "high_risk_count": high_risk_count,
+        "chit_fund": chit_fund,
     }
     return render(request, "chitfund/dashboard.html", context)
 
 
 @login_required
-def client_list(request):
-    clients = Client.objects.filter(user=request.user)
+def client_list(request, fund_slug):
+    chit_fund = _get_chit_fund(fund_slug)
+    clients = Client.objects.filter(user=request.user, chit_fund=chit_fund["key"])
     query = request.GET.get("q")
     sort_by = request.GET.get("sort_by", "name")
     sort_order = request.GET.get("sort_order", "asc")
@@ -177,37 +229,61 @@ def client_list(request):
             "query": query or "",
             "sort_by": sort_by,
             "sort_order": sort_order,
+            "chit_fund": chit_fund,
         },
     )
 
 
 @login_required
-def client_create(request):
+def client_create(request, fund_slug):
+    chit_fund = _get_chit_fund(fund_slug)
     if request.method == "POST":
         form = ClientForm(request.POST)
         if form.is_valid():
             client = form.save(commit=False)
             client.user = request.user
+            client.chit_fund = chit_fund["key"]
             client.save()
             messages.success(request, "Client added successfully.")
-            return redirect("client-list")
+            return redirect("client-list", fund_slug=fund_slug)
     else:
         form = ClientForm()
-    return render(request, "chitfund/client_form.html", {"form": form, "title": "Add Client"})
+    return render(
+        request,
+        "chitfund/client_form.html",
+        {"form": form, "title": "Add Client", "chit_fund": chit_fund},
+    )
 
 
 @login_required
-def client_edit(request, client_id):
-    client = get_object_or_404(Client, id=client_id, user=request.user)
+def client_edit(request, fund_slug, client_id):
+    chit_fund = _get_chit_fund(fund_slug)
+    client = get_object_or_404(
+        Client, id=client_id, user=request.user, chit_fund=chit_fund["key"]
+    )
     if request.method == "POST":
         form = ClientForm(request.POST, instance=client)
         if form.is_valid():
             form.save()
             messages.success(request, "Client updated successfully.")
-            return redirect("client-list")
+            return redirect("client-list", fund_slug=fund_slug)
     else:
         form = ClientForm(instance=client)
-    return render(request, "chitfund/client_form.html", {"form": form, "title": "Edit Client"})
+    return render(
+        request,
+        "chitfund/client_form.html",
+        {"form": form, "title": "Edit Client", "chit_fund": chit_fund},
+    )
+
+
+@login_required
+def legacy_client_list_redirect(request):
+    return redirect("client-list", fund_slug="2-lakh-chitti")
+
+
+@login_required
+def legacy_client_create_redirect(request):
+    return redirect("client-create", fund_slug="2-lakh-chitti")
 
 
 @require_POST
