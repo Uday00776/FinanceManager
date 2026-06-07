@@ -1,0 +1,336 @@
+{% extends "chitfund/base.html" %}
+
+{% block content %}
+<div class="space-y-6">
+
+    <!-- Header & Navigation -->
+    <div class="sm:flex sm:items-center sm:justify-between">
+        <div>
+            <nav class="flex" aria-label="Breadcrumb">
+                <ol role="list" class="flex items-center space-x-2">
+                    <li>
+                        <a href="{% url 'daily-finance-dashboard' %}" class="text-sm font-medium text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors">Daily Finance</a>
+                    </li>
+                    <li>
+                        <div class="flex items-center">
+                            <svg class="h-5 w-5 flex-shrink-0 text-gray-400" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                <path fill-rule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clip-rule="evenodd" />
+                            </svg>
+                            <span class="ml-2 text-sm font-semibold text-gray-800 dark:text-white">{{ client.name }}</span>
+                        </div>
+                    </li>
+                </ol>
+            </nav>
+            <h2 class="mt-2 text-2xl font-bold leading-7 text-gray-900 dark:text-white sm:truncate sm:tracking-tight transition-colors">
+                {{ client.name }}'s Loan History
+            </h2>
+        </div>
+        <div class="mt-4 sm:ml-4 sm:mt-0 flex gap-2">
+            <a href="{% url 'daily-finance-client-edit' client.id %}" class="inline-flex items-center rounded-md bg-white dark:bg-gray-700 px-3 py-2 text-sm font-semibold text-gray-900 dark:text-gray-200 shadow-sm ring-1 ring-inset ring-gray-300 dark:ring-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors">
+                Edit Client
+            </a>
+            <a href="{% url 'daily-finance-client-delete' client.id %}" onclick="return confirm('Are you sure you want to delete this client and all their records?');" class="inline-flex items-center rounded-md bg-red-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-500 transition-colors">
+                Delete Client
+            </a>
+        </div>
+    </div>
+
+    <!-- Stats Cards and Info -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        <!-- Profile details -->
+        <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 transition-colors flex flex-col justify-between">
+            <div>
+                <h3 class="text-lg font-bold text-gray-900 dark:text-white border-b border-gray-150 dark:border-gray-700 pb-3 mb-4">Client Details</h3>
+                <dl class="space-y-3">
+                    <div class="flex justify-between">
+                        <dt class="text-sm text-gray-500 dark:text-gray-400">Phone</dt>
+                        <dd class="text-sm font-medium text-gray-900 dark:text-white">{{ client.phone|default:"-" }}</dd>
+                    </div>
+                    <div class="flex justify-between">
+                        <dt class="text-sm text-gray-500 dark:text-gray-400">Address</dt>
+                        <dd class="text-sm font-medium text-gray-900 dark:text-white text-right max-w-[200px] truncate" title="{{ client.address }}">{{ client.address|default:"-" }}</dd>
+                    </div>
+                    <div class="flex justify-between">
+                        <dt class="text-sm text-gray-500 dark:text-gray-400">Loan Date</dt>
+                        <dd class="text-sm font-medium text-gray-900 dark:text-white">{{ client.start_date|date:"M d, Y" }}</dd>
+                    </div>
+                    <div class="flex justify-between">
+                        <dt class="text-sm text-gray-500 dark:text-gray-400">First Collection Date</dt>
+                        <dd class="text-sm font-medium text-gray-900 dark:text-white">{{ collection_start_date|date:"M d, Y" }}</dd>
+                    </div>
+                    <div class="flex justify-between">
+                        <dt class="text-sm text-gray-500 dark:text-gray-400">Planned End Date</dt>
+                        <dd class="text-sm font-medium text-gray-900 dark:text-white">{{ client.end_date|date:"M d, Y" }}</dd>
+                    </div>
+                    <div class="flex justify-between">
+                        <dt class="text-sm text-gray-500 dark:text-gray-400">Planned Tenure</dt>
+                        <dd class="text-sm font-medium text-gray-900 dark:text-white">{{ client.duration_days }} Days</dd>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <dt class="text-sm text-gray-500 dark:text-gray-400">Status</dt>
+                        <dd>
+                            <span class="inline-flex items-center rounded-md px-2 py-1 text-xs font-semibold {% if client.is_active %}bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400 ring-1 ring-inset ring-green-600/20{% else %}bg-gray-50 dark:bg-gray-700 text-gray-600 dark:text-gray-300 ring-1 ring-inset ring-gray-500/10{% endif %}">
+                                {% if client.is_active %}Active{% else %}Completed{% endif %}
+                            </span>
+                        </dd>
+                    </div>
+                </dl>
+            </div>
+        </div>
+
+        <!-- Financial Summary -->
+        <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 transition-colors">
+            <h3 class="text-lg font-bold text-gray-900 dark:text-white border-b border-gray-150 dark:border-gray-700 pb-3 mb-4">Financials Summary</h3>
+            <dl class="grid grid-cols-2 gap-4">
+                <div class="bg-gray-50 dark:bg-gray-700/30 p-3 rounded-lg">
+                    <dt class="text-xs text-gray-500 dark:text-gray-400">Asked Amount</dt>
+                    <dd class="text-base font-bold text-gray-900 dark:text-white">Rs. {{ client.asked_amount|floatformat:2 }}</dd>
+                </div>
+                <div class="bg-gray-50 dark:bg-gray-700/30 p-3 rounded-lg">
+                    <dt class="text-xs text-gray-500 dark:text-gray-400">Interest ({{ client.interest_rate_percent }}%)</dt>
+                    <dd class="text-base font-bold text-amber-600 dark:text-amber-400">Rs. {{ client.interest_amount|floatformat:2 }}</dd>
+                </div>
+                <div class="bg-gray-50 dark:bg-gray-700/30 p-3 rounded-lg">
+                    <dt class="text-xs text-gray-500 dark:text-gray-400">Net Given</dt>
+                    <dd class="text-base font-bold text-green-600 dark:text-green-400">Rs. {{ client.given_amount|floatformat:2 }}</dd>
+                </div>
+                <div class="bg-gray-50 dark:bg-gray-700/30 p-3 rounded-lg">
+                    <dt class="text-xs text-gray-500 dark:text-gray-400">Daily Installment</dt>
+                    <dd class="text-base font-bold text-indigo-600 dark:text-indigo-400">Rs. {{ client.daily_installment|floatformat:2 }}</dd>
+                </div>
+            </dl>
+        </div>
+
+        <!-- Collection Progress & Health -->
+        <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 transition-colors flex flex-col justify-between">
+            <div>
+                <h3 class="text-lg font-bold text-gray-900 dark:text-white border-b border-gray-150 dark:border-gray-700 pb-3 mb-4">Collection Progress</h3>
+                <div class="space-y-4">
+                    <div class="flex justify-between items-center">
+                        <span class="text-sm font-semibold text-gray-700 dark:text-gray-300">Overall Progress</span>
+                        <span class="text-sm font-bold text-amber-600 dark:text-amber-400">{{ progress_percent }}%</span>
+                    </div>
+                    <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3">
+                        <div class="bg-amber-500 h-3 rounded-full transition-all duration-500" style="width: {{ progress_percent }}%"></div>
+                    </div>
+                    
+                    <div class="grid grid-cols-2 gap-2 text-sm pt-2">
+                        <div>
+                            <span class="text-gray-500 dark:text-gray-400">Paid Days:</span>
+                            <span class="font-bold text-gray-900 dark:text-white">{{ paid_days_count }} days</span>
+                        </div>
+                        <div>
+                            <span class="text-gray-500 dark:text-gray-400">Collected:</span>
+                            <span class="font-bold text-green-600 dark:text-green-400">Rs. {{ total_paid|floatformat:0 }}</span>
+                        </div>
+                        <div>
+                            <span class="text-gray-500 dark:text-gray-400">Missed Days:</span>
+                            <span class="font-bold text-red-600 dark:text-red-400">{{ missed_days_count }}</span>
+                        </div>
+                        <div>
+                            <span class="text-gray-500 dark:text-gray-400">Remaining:</span>
+                            <span class="font-bold text-indigo-600 dark:text-indigo-400">Rs. {{ remaining_balance|floatformat:0 }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mt-4 pt-3 border-t border-gray-100 dark:border-gray-700 flex justify-between items-center">
+                <span class="text-sm font-medium text-gray-500 dark:text-gray-400">Health Status</span>
+                <span class="inline-flex items-center rounded-md px-2.5 py-1 text-sm font-bold ring-1 ring-inset {% if health_color == 'green' %}bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400 ring-green-600/20{% elif health_color == 'indigo' %}bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400 ring-indigo-600/20{% elif health_color == 'yellow' %}bg-yellow-50 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 ring-yellow-600/20{% else %}bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-400 ring-red-600/20{% endif %}">
+                    {{ health_status }}
+                </span>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Extendable Collection Grid -->
+    <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 transition-colors">
+        <div class="flex items-center justify-between border-b border-gray-150 dark:border-gray-700 pb-3 mb-6">
+            <h3 class="text-lg font-bold text-gray-900 dark:text-white">Daily Ledger ({{ ledger_days }} Days Shown)</h3>
+            <div class="flex flex-wrap gap-4 text-xs font-semibold">
+                <div class="flex items-center gap-1.5">
+                    <div class="h-3.5 w-3.5 rounded bg-green-500 border border-green-600"></div>
+                    <span class="text-gray-600 dark:text-gray-400">Paid (Rs. {{ client.daily_installment }})</span>
+                </div>
+                <div class="flex items-center gap-1.5">
+                    <div class="h-3.5 w-3.5 rounded bg-amber-500 border border-amber-600"></div>
+                    <span class="text-gray-600 dark:text-gray-400">Partial Paid</span>
+                </div>
+                <div class="flex items-center gap-1.5">
+                    <div class="h-3.5 w-3.5 rounded bg-red-500 border border-red-600"></div>
+                    <span class="text-gray-600 dark:text-gray-400">Missed Day</span>
+                </div>
+                <div class="flex items-center gap-1.5">
+                    <div class="h-3.5 w-3.5 rounded bg-gray-200 dark:bg-gray-700 border border-gray-300 dark:border-gray-600"></div>
+                    <span class="text-gray-600 dark:text-gray-400">Future Unpaid</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- The Grid -->
+        <div class="grid grid-cols-5 sm:grid-cols-10 gap-3 sm:gap-4 max-w-5xl mx-auto">
+            {% for day in days %}
+                <button type="button" 
+                        data-day-block 
+                        data-date="{{ day.date|date:'Y-m-d' }}"
+                        data-day-num="{{ day.day_number }}"
+                        data-amount="{{ day.amount_paid }}"
+                        data-status="{{ day.status }}"
+                        data-notes="{{ day.notes }}"
+                        class="aspect-square relative flex flex-col justify-between p-2 rounded-lg border text-left transition-all hover:scale-105 shadow-sm focus:outline-none focus:ring-2 focus:ring-amber-500 {% if day.status == 'PAID' %}bg-green-500 border-green-600 hover:bg-green-600 text-white{% elif day.status == 'PARTIAL' %}bg-amber-500 border-amber-600 hover:bg-amber-600 text-white{% elif day.status == 'MISSED' %}bg-red-500 border-red-600 hover:bg-red-600 text-white{% else %}bg-gray-100 dark:bg-gray-700 border-gray-200 dark:border-gray-600 text-gray-800 dark:text-gray-250 hover:bg-gray-200 dark:hover:bg-gray-600{% endif %}">
+                    
+                    <span class="text-xs font-bold opacity-75">D-{{ day.day_number }}</span>
+                    
+                    <div class="mt-auto">
+                        <span class="block text-[10px] font-medium opacity-90 leading-tight">{{ day.date|date:"d M" }}</span>
+                        <span class="block text-[10px] font-bold mt-0.5 leading-none">
+                            {% if day.status == 'PAID' or day.status == 'PARTIAL' %}
+                                Rs. {{ day.amount_paid|floatformat:0 }}
+                            {% elif day.status == 'MISSED' %}
+                                Missed
+                            {% else %}
+                                -
+                            {% endif %}
+                        </span>
+                    </div>
+
+                    {% if day.notes %}
+                        <div class="absolute top-1.5 right-1.5 h-1.5 w-1.5 rounded-full bg-white opacity-80" title="{{ day.notes }}"></div>
+                    {% endif %}
+                </button>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<!-- Add/Edit Payment Modal -->
+<div id="payment-modal" class="relative z-50 hidden" role="dialog" aria-modal="true">
+    <div class="fixed inset-0 bg-gray-500 bg-opacity-75 dark:bg-gray-900 dark:bg-opacity-80 transition-opacity"></div>
+    <div class="fixed inset-0 z-50 overflow-y-auto">
+        <div class="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
+            
+            <div class="relative transform overflow-hidden rounded-xl bg-white dark:bg-gray-800 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-md border border-gray-200 dark:border-gray-700">
+                <form method="post" action="{% url 'daily-finance-update-day' client.id %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="date" id="modal-date">
+                    
+                    <div class="p-6">
+                        <h3 class="text-base font-bold leading-6 text-gray-900 dark:text-white mb-2" id="modal-title">
+                            Update Payment
+                        </h3>
+                        <p class="text-xs text-gray-500 dark:text-gray-400 mb-6" id="modal-subtitle">
+                            Log collection status for this day.
+                        </p>
+                        
+                        <div class="space-y-4">
+                            <!-- Amount Paid -->
+                            <div>
+                                <label for="modal-amount" class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Amount Paid (Rs.)</label>
+                                <div class="relative rounded-md shadow-sm">
+                                    <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                                        <span class="text-gray-500 text-sm">Rs.</span>
+                                    </div>
+                                    <input type="number" step="0.01" name="amount_paid" id="modal-amount" 
+                                           class="block w-full rounded-md border-0 py-2 pl-10 text-gray-900 dark:text-white dark:bg-gray-700 ring-1 ring-inset ring-gray-300 dark:ring-gray-600 focus:ring-2 focus:ring-amber-500 text-sm" placeholder="0.00">
+                                </div>
+                            </div>
+                            
+                            <!-- Payment Status -->
+                            <div>
+                                <label for="modal-status" class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Status</label>
+                                <select name="status" id="modal-status" 
+                                        class="block w-full rounded-md border-0 py-2 text-gray-900 dark:text-white dark:bg-gray-700 ring-1 ring-inset ring-gray-300 dark:ring-gray-600 focus:ring-2 focus:ring-amber-500 text-sm">
+                                    <option value="PAID">Paid</option>
+                                    <option value="PARTIAL">Partial Paid</option>
+                                    <option value="MISSED">Unpaid / Missed Day</option>
+                                    <option value="FUTURE">Future Unpaid</option>
+                                </select>
+                            </div>
+                            
+                            <!-- Notes -->
+                            <div>
+                                <label for="modal-notes" class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Notes</label>
+                                <input type="text" name="notes" id="modal-notes" placeholder="e.g. Paid online, late collection, etc."
+                                       class="block w-full rounded-md border-0 py-2 text-gray-900 dark:text-white dark:bg-gray-700 ring-1 ring-inset ring-gray-300 dark:ring-gray-600 focus:ring-2 focus:ring-amber-500 text-sm">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-gray-50 dark:bg-gray-800/50 px-6 py-3 flex flex-row-reverse gap-3 border-t border-gray-150 dark:border-gray-700">
+                        <button type="submit" class="inline-flex w-full justify-center rounded-md bg-amber-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-amber-500 sm:w-auto transition-colors">
+                            Save Changes
+                        </button>
+                        <button type="button" id="close-modal-btn" class="inline-flex w-full justify-center rounded-md bg-white dark:bg-gray-700 px-3 py-2 text-sm font-semibold text-gray-900 dark:text-gray-200 shadow-sm ring-1 ring-inset ring-gray-300 dark:ring-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600 sm:w-auto transition-colors">
+                            Cancel
+                        </button>
+                    </div>
+                </form>
+            </div>
+            
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const modal = document.getElementById('payment-modal');
+    const closeBtn = document.getElementById('close-modal-btn');
+    
+    const dateInput = document.getElementById('modal-date');
+    const amountInput = document.getElementById('modal-amount');
+    const statusSelect = document.getElementById('modal-status');
+    const notesInput = document.getElementById('modal-notes');
+    
+    const title = document.getElementById('modal-title');
+    const subtitle = document.getElementById('modal-subtitle');
+    
+    const dailyInstallment = parseFloat("{{ client.daily_installment }}");
+
+    // Open Modal logic
+    document.querySelectorAll('[data-day-block]').forEach(block => {
+        block.addEventListener('click', () => {
+            const date = block.getAttribute('data-date');
+            const dayNum = block.getAttribute('data-day-num');
+            const amount = block.getAttribute('data-amount');
+            const status = block.getAttribute('data-status');
+            const notes = block.getAttribute('data-notes');
+            
+            // Populate form
+            dateInput.value = date;
+            
+            // Set default amount to daily installment if zero or unpaid
+            if (status === 'FUTURE' || status === 'MISSED' || parseFloat(amount) === 0) {
+                amountInput.value = dailyInstallment.toFixed(2);
+                statusSelect.value = (status === 'MISSED') ? 'MISSED' : 'PAID';
+            } else {
+                amountInput.value = parseFloat(amount).toFixed(2);
+                statusSelect.value = status;
+            }
+            
+            notesInput.value = notes || '';
+            
+            title.textContent = `Update Ledger: Day ${dayNum}`;
+            subtitle.textContent = `Log payment status for date: ${date}`;
+            
+            // Show modal
+            modal.classList.remove('hidden');
+        });
+    });
+    
+    // Close Modal logic
+    closeBtn.addEventListener('click', () => {
+        modal.classList.add('hidden');
+    });
+    
+    // Close modal clicking outside
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal.querySelector('.fixed.inset-0')) {
+            modal.classList.add('hidden');
+        }
+    });
+});
+</script>
+{% endblock %}

@@ -8,7 +8,7 @@
     <p class="mt-2 text-lg leading-8 text-gray-600 dark:text-gray-400 text-center md:text-left transition-colors">What would you like to manage today?</p>
 </div>
 
-<div class="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl">
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-7xl">
     
     <!-- ChitFund Card -->
     <div class="relative group rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-8 shadow-sm hover:shadow-xl hover:border-primary/30 dark:hover:border-primary/50 transition-all">
@@ -45,6 +45,43 @@
             </a>
         </div>
     </div>
-    
+
+    <!-- Friend Credits Card -->
+    <div class="relative group rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-8 shadow-sm hover:shadow-xl hover:border-purple-500/30 dark:hover:border-purple-500/50 transition-all">
+        <div class="absolute inset-0 bg-gradient-to-br from-purple-50/50 dark:from-purple-900/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity rounded-2xl"></div>
+        <div class="relative">
+            <div class="inline-flex items-center justify-center rounded-lg bg-purple-50 dark:bg-purple-900/50 p-4 mb-6 transition-colors">
+                <svg class="h-8 w-8 text-purple-600 dark:text-purple-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.109A11.978 11.978 0 0112 20.25a11.978 11.978 0 01-3-1.013v-.109m6 0c.266-.18.5-.397.696-.642m-8.196.642a9.38 9.38 0 01-2.625.372 9.337 9.337 0 01-4.121-.952 4.125 4.125 0 017.533-2.493M9 19.128v-.003c0-1.113.285-2.16.786-3.07M9 19.128v.109A11.978 11.978 0 016 20.25a11.978 11.978 0 01-3-1.013v-.109m6 0A8.966 8.966 0 019 15.4M9 15.4a1.86 1.86 0 00-1.002-.596M12 12.75a3 3 0 100-6 3 3 0 000 6zm5.25 3h.008v.008h-.008V15.75zm-10.5 0h.008v.008h-.008V15.75z" />
+                </svg>
+            </div>
+            <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-2 transition-colors">Friend Credits</h3>
+            <p class="text-gray-500 dark:text-gray-400 mb-8 transition-colors">Record daily credits given to friends and track outstanding receivables seamlessly.</p>
+            <a href="{% url 'credits-dashboard' %}" class="inline-flex items-center gap-2 text-purple-600 dark:text-purple-400 font-semibold hover:text-purple-700 dark:hover:text-purple-300 transition-colors">
+                Open Credits 
+                <span aria-hidden="true">&rarr;</span>
+            </a>
+        </div>
+    </div>
+
+    <!-- Daily Finance Tracker Card -->
+    <div class="relative group rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-8 shadow-sm hover:shadow-xl hover:border-amber-500/30 dark:hover:border-amber-500/50 transition-all">
+        <div class="absolute inset-0 bg-gradient-to-br from-amber-50/50 dark:from-amber-900/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity rounded-2xl"></div>
+        <div class="relative">
+            <div class="inline-flex items-center justify-center rounded-lg bg-amber-50 dark:bg-amber-900/50 p-4 mb-6 transition-colors">
+                <svg class="h-8 w-8 text-amber-600 dark:text-amber-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5h.007v.008H3.75V4.5zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zM3 13.5h.008v.008H3V13.5zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zM6 6.25h.008v.008H6V6.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zM6 10.25h.008v.008H6v-.008zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zM6 14.25h.008v.008H6v-.008zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zM12 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 6.25h7.5m-7.5 4h7.5m-7.5 4h7.5M3 18.75h18" />
+                </svg>
+            </div>
+            <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-2 transition-colors">Daily Finance Tracker</h3>
+            <p class="text-gray-500 dark:text-gray-400 mb-8 transition-colors">Manage clients, track daily 100-day collection records (5% interest), and log payments easily.</p>
+            <a href="{% url 'daily-finance-dashboard' %}" class="inline-flex items-center gap-2 text-amber-600 dark:text-amber-400 font-semibold hover:text-amber-700 dark:hover:text-amber-300 transition-colors">
+                Open Daily Finance 
+                <span aria-hidden="true">&rarr;</span>
+            </a>
+        </div>
+    </div>
+
 </div>
 {% endblock %}

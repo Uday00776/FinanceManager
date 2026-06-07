@@ -13,8 +13,8 @@
             theme: {
                 extend: {
                     colors: {
-                        primary: '#4f46e5', // Indigo-600
-                        'primary-hover': '#4338ca', // Indigo-700
+                        primary: '#8b5cf6',
+                        'primary-hover': '#7c3aed',
                     }
                 }
             }
@@ -22,14 +22,200 @@
     </script>
     <!-- Dark Mode Initializer to prevent flash of incorrect theme -->
     <script>
-        if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-            document.documentElement.classList.add('dark')
-        } else {
+        if (localStorage.theme === 'light') {
             document.documentElement.classList.remove('dark')
+        } else {
+            document.documentElement.classList.add('dark')
         }
     </script>
+    <style>
+        :root {
+            --system-bg: #03050d;
+            --system-panel: rgba(10, 14, 32, 0.86);
+            --system-panel-strong: rgba(15, 19, 42, 0.95);
+            --system-line: rgba(139, 92, 246, 0.32);
+            --system-line-hot: rgba(34, 211, 238, 0.5);
+            --system-text: #eef2ff;
+            --system-muted: #9ca3c7;
+            --system-cyan: #22d3ee;
+            --system-violet: #8b5cf6;
+            --system-magenta: #c084fc;
+        }
+
+        body.system-theme {
+            color: var(--system-text);
+            background:
+                radial-gradient(circle at 18% 0%, rgba(124, 58, 237, 0.3), transparent 32rem),
+                radial-gradient(circle at 86% 12%, rgba(34, 211, 238, 0.18), transparent 28rem),
+                linear-gradient(135deg, #02040a 0%, #070a18 42%, #120923 100%);
+        }
+
+        body.system-theme::before {
+            content: "";
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            background-image:
+                linear-gradient(rgba(139, 92, 246, 0.09) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(34, 211, 238, 0.07) 1px, transparent 1px);
+            background-size: 34px 34px;
+            mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.85), transparent 78%);
+            z-index: -1;
+        }
+
+        body.system-theme header,
+        body.system-theme footer {
+            background: rgba(3, 6, 18, 0.86) !important;
+            border-color: var(--system-line) !important;
+            box-shadow: 0 0 28px rgba(124, 58, 237, 0.18);
+            backdrop-filter: blur(18px);
+        }
+
+        body.system-theme h1 {
+            background-image: linear-gradient(90deg, var(--system-cyan), var(--system-violet), var(--system-magenta));
+            text-shadow: 0 0 22px rgba(139, 92, 246, 0.5);
+            letter-spacing: 0.02em;
+        }
+
+        body.system-theme h2,
+        body.system-theme h3,
+        body.system-theme .text-gray-900,
+        body.system-theme .dark\:text-white {
+            color: var(--system-text) !important;
+        }
+
+        body.system-theme .text-gray-500,
+        body.system-theme .text-gray-600,
+        body.system-theme .dark\:text-gray-300,
+        body.system-theme .dark\:text-gray-400 {
+            color: var(--system-muted) !important;
+        }
+
+        body.system-theme .text-primary,
+        body.system-theme .dark\:text-indigo-400,
+        body.system-theme .text-indigo-600,
+        body.system-theme .text-purple-600,
+        body.system-theme .dark\:text-purple-400 {
+            color: var(--system-cyan) !important;
+            text-shadow: 0 0 16px rgba(34, 211, 238, 0.38);
+        }
+
+        body.system-theme .bg-white,
+        body.system-theme .dark\:bg-gray-800,
+        body.system-theme .dark\:bg-gray-700,
+        body.system-theme .bg-gray-50 {
+            background-color: var(--system-panel) !important;
+        }
+
+        body.system-theme .border-gray-200,
+        body.system-theme .border-gray-300,
+        body.system-theme .dark\:border-gray-700,
+        body.system-theme .dark\:border-gray-600,
+        body.system-theme .ring-gray-300,
+        body.system-theme .dark\:ring-gray-600,
+        body.system-theme .divide-gray-200 > :not([hidden]) ~ :not([hidden]),
+        body.system-theme .dark\:divide-gray-700 > :not([hidden]) ~ :not([hidden]) {
+            border-color: var(--system-line) !important;
+            --tw-ring-color: var(--system-line) !important;
+        }
+
+        body.system-theme .shadow,
+        body.system-theme .shadow-sm,
+        body.system-theme .hover\:shadow-xl:hover {
+            box-shadow: 0 0 0 1px rgba(139, 92, 246, 0.18), 0 16px 40px rgba(0, 0, 0, 0.38), 0 0 28px rgba(124, 58, 237, 0.16) !important;
+        }
+
+        body.system-theme .rounded-2xl,
+        body.system-theme .rounded-lg,
+        body.system-theme .rounded-md {
+            border-radius: 6px !important;
+        }
+
+        body.system-theme a:hover,
+        body.system-theme button:hover {
+            color: #f5f3ff;
+        }
+
+        body.system-theme .bg-primary,
+        body.system-theme button[type="submit"].bg-primary {
+            background: linear-gradient(135deg, #6d28d9, #2563eb 52%, #0891b2) !important;
+            border: 1px solid rgba(34, 211, 238, 0.38);
+            box-shadow: 0 0 18px rgba(34, 211, 238, 0.24), inset 0 0 16px rgba(255, 255, 255, 0.08) !important;
+        }
+
+        body.system-theme .hover\:bg-primary-hover:hover {
+            background: linear-gradient(135deg, #7c3aed, #3b82f6 52%, #06b6d4) !important;
+        }
+
+        body.system-theme table {
+            background: var(--system-panel-strong);
+        }
+
+        body.system-theme thead,
+        body.system-theme .dark\:bg-gray-900\/30 {
+            background-color: rgba(7, 10, 24, 0.98) !important;
+        }
+
+        body.system-theme tbody {
+            background-color: rgba(9, 13, 30, 0.9) !important;
+        }
+
+        body.system-theme tr:hover,
+        body.system-theme .hover\:bg-gray-50:hover,
+        body.system-theme .dark\:hover\:bg-gray-700\/50:hover,
+        body.system-theme .dark\:hover\:bg-gray-600:hover {
+            background-color: rgba(34, 211, 238, 0.09) !important;
+        }
+
+        body.system-theme input,
+        body.system-theme select,
+        body.system-theme textarea {
+            color: var(--system-text) !important;
+            background-color: rgba(3, 7, 18, 0.9) !important;
+            border-color: var(--system-line-hot) !important;
+        }
+
+        body.system-theme input:focus,
+        body.system-theme select:focus,
+        body.system-theme textarea:focus,
+        body.system-theme button:focus,
+        body.system-theme a:focus {
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(34, 211, 238, 0.28), 0 0 24px rgba(139, 92, 246, 0.2) !important;
+        }
+
+        body.system-theme .bg-indigo-50,
+        body.system-theme .dark\:bg-indigo-900\/50,
+        body.system-theme .bg-purple-50,
+        body.system-theme .dark\:bg-purple-900\/50 {
+            background-color: rgba(88, 28, 135, 0.32) !important;
+            border: 1px solid rgba(34, 211, 238, 0.22);
+        }
+
+        body.system-theme .bg-green-50,
+        body.system-theme .dark\:bg-green-900\/30,
+        body.system-theme .dark\:bg-green-900\/40,
+        body.system-theme .dark\:bg-green-900\/50 {
+            background-color: rgba(20, 83, 45, 0.28) !important;
+        }
+
+        body.system-theme .bg-red-50,
+        body.system-theme .dark\:bg-red-900\/30,
+        body.system-theme .bg-orange-50,
+        body.system-theme .dark\:bg-orange-900\/30,
+        body.system-theme .dark\:bg-orange-900\/40,
+        body.system-theme .bg-amber-50,
+        body.system-theme .dark\:bg-amber-900\/50 {
+            background-color: rgba(127, 29, 29, 0.24) !important;
+        }
+
+        body.system-theme .group:hover {
+            border-color: var(--system-line-hot) !important;
+            transform: translateY(-2px);
+        }
+    </style>
 </head>
-<body class="h-full font-sans bg-gray-50 text-gray-800 dark:bg-gray-900 dark:text-gray-100 flex flex-col min-h-screen transition-colors duration-200">
+<body class="system-theme h-full font-sans bg-gray-50 text-gray-800 dark:bg-gray-900 dark:text-gray-100 flex flex-col min-h-screen transition-colors duration-200">
     
     <!-- Navbar -->
     <header class="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-50 transition-colors duration-200">
@@ -49,6 +235,8 @@
                         <a href="{% url 'chitfund-management' %}" class="text-gray-500 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white px-2 py-2 text-sm font-medium transition-colors">ChitFund</a>
                         <a href="{% url 'client-list' '2-lakh-chitti' %}" class="text-gray-500 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white px-2 py-2 text-sm font-medium transition-colors">Clients</a>
                         <a href="{% url 'daily-expense-list' %}" class="text-gray-500 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white px-2 py-2 text-sm font-medium transition-colors">Expenses</a>
+                        <a href="{% url 'credits-dashboard' %}" class="text-gray-500 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white px-2 py-2 text-sm font-medium transition-colors">Credits</a>
+                        <a href="{% url 'daily-finance-dashboard' %}" class="text-gray-500 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white px-2 py-2 text-sm font-medium transition-colors">Daily Finance</a>
                         <a href="/admin/" class="text-gray-500 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white px-2 py-2 text-sm font-medium transition-colors">Admin</a>
                         
                         <!-- Theme Toggle Button -->
@@ -78,6 +266,8 @@
                 <div class="md:hidden flex items-center space-x-4">
                     {% if request.user.is_authenticated %}
                         <a href="{% url 'home' %}" class="text-gray-500 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white text-sm font-medium">Home</a>
+                        <a href="{% url 'credits-dashboard' %}" class="text-gray-500 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white text-sm font-medium">Credits</a>
+                        <a href="{% url 'daily-finance-dashboard' %}" class="text-gray-500 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white text-sm font-medium">Daily Finance</a>
                         <a href="{% url 'logout' %}" class="text-gray-500 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white text-sm font-medium">Logout</a>
                     {% else %}
                         <a href="{% url 'login' %}" class="text-gray-500 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white text-sm font-medium">Login</a>

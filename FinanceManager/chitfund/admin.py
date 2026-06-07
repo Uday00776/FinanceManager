@@ -1,6 +1,12 @@
 from django.contrib import admin
 
-from .models import Client, DailyExpense, MonthlyPayment
+from .models import (
+    Client,
+    DailyExpense,
+    DailyFinanceClient,
+    DailyFinancePayment,
+    MonthlyPayment,
+)
 
 
 @admin.register(Client)
@@ -31,4 +37,25 @@ class DailyExpenseAdmin(admin.ModelAdmin):
     list_filter = ("expense_date", "category")
     search_fields = ("user__username", "category", "description")
 
-# Register your models here.
+
+@admin.register(DailyFinanceClient)
+class DailyFinanceClientAdmin(admin.ModelAdmin):
+    list_display = (
+        "name",
+        "user",
+        "asked_amount",
+        "given_amount",
+        "daily_installment",
+        "start_date",
+        "end_date",
+        "is_active",
+    )
+    list_filter = ("is_active", "start_date")
+    search_fields = ("name", "phone", "user__username")
+
+
+@admin.register(DailyFinancePayment)
+class DailyFinancePaymentAdmin(admin.ModelAdmin):
+    list_display = ("client", "date", "status", "amount_paid")
+    list_filter = ("status", "date")
+    search_fields = ("client__name", "client__phone")

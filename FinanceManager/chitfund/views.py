@@ -1,11 +1,13 @@
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal
 
 from django.contrib import messages
 from django.contrib.auth import login, logout
 from django.contrib.auth.decorators import login_required
-from django.http import Http404
-from django.db.models import Count, Q, Sum
+from django.http import Http404, JsonResponse
+from django.utils import timezone
+from django.db.models import Count, Max, Q, Sum, F, DecimalField
+from django.db.models.functions import Coalesce
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
@@ -14,8 +16,20 @@ from .forms import (
     DailyExpenseForm,
     EmailOrUsernameAuthenticationForm,
     SignUpForm,
+    CreditFriendForm,
+    CreditTransactionForm,
+    DailyFinanceClientForm,
+    DailyFinancePaymentForm,
 )
-from .models import Client, DailyExpense, MonthlyPayment
+from .models import (
+    Client,
+    DailyExpense,
+    MonthlyPayment,
+    CreditFriend,
+    CreditTransaction,
+    DailyFinanceClient,
+    DailyFinancePayment,
+)
 from chitfund.ml.risk_predictor import risk_predictor
 
 
@@ -68,6 +82,43 @@ def _parse_month(month_param):
         return date(int(year_str), int(month_str), 1)
     except (ValueError, TypeError):
         return _first_day_of_current_month()
+
+
+def _local_today():
+    return timezone.localdate()
+
+
+def _parse_selected_date(request):
+    raw = request.GET.get("date") or request.POST.get("date")
+    if raw:
+        try:
+            return date.fromisoformat(raw)
+        except ValueError:
+            pass
+    return _local_today()
+
+
+def _daily_finance_redirect_url(request, selected_date=None):
+    selected_date = selected_date or _parse_selected_date(request)
+    params = []
+    query = request.GET.get("q") or request.POST.get("q")
+    if query:
+        params.append(f"q={query}")
+    if request.GET.get("completed") == "true" or request.POST.get("completed") == "true":
+        params.append("completed=true")
+    if selected_date != _local_today():
+        params.append(f"date={selected_date.isoformat()}")
+    if not params:
+        return "/daily-finance/"
+    return f"/daily-finance/?{'&'.join(params)}"
+
+
+def _daily_finance_collection_start(client):
+    return client.start_date + timedelta(days=1)
+
+
+def _daily_finance_planned_end(client):
+    return client.start_date + timedelta(days=client.duration_days)
 
 
 def _payable_amount_for_month(client, payment_month):
@@ -311,11 +362,21 @@ def daily_expense_list(request):
         expense_date__year=month.year,
         expense_date__month=month.month,
     )
-    total_expense = expenses.aggregate(total=Sum("amount"))["total"] or Decimal("0")
+    stats = expenses.aggregate(
+        total=Sum("amount"),
+        personal=Sum("amount", filter=Q(category=DailyExpense.Category.PERSONAL)),
+        home=Sum("amount", filter=Q(category=DailyExpense.Category.HOME)),
+    )
+    total_expense = stats["total"] or Decimal("0")
+    personal_expense = stats["personal"] or Decimal("0")
+    home_expense = stats["home"] or Decimal("0")
+
     context = {
         "expenses": expenses,
         "selected_month": month,
         "total_expense": total_expense,
+        "personal_expense": personal_expense,
+        "home_expense": home_expense,
     }
     return render(request, "chitfund/daily_expense_list.html", context)
 
@@ -334,3 +395,546 @@ def daily_expense_create(request):
         "chitfund/daily_expense_form.html",
         {"form": form, "title": "Add Daily Expense"},
     )
+
+
+@login_required
+def credits_dashboard(request, friend_id=None):
+    # Query all friends for the current user and calculate their balances
+    friends = CreditFriend.objects.filter(user=request.user).annotate(
+        total_lent=Coalesce(
+            Sum(
+                "transactions__amount",
+                filter=Q(transactions__transaction_type="GIVE"),
+            ),
+            Decimal("0.0"),
+            output_field=DecimalField(),
+        ),
+        total_returned=Coalesce(
+            Sum(
+                "transactions__amount",
+                filter=Q(transactions__transaction_type="RECEIVE"),
+            ),
+            Decimal("0.0"),
+            output_field=DecimalField(),
+        ),
+    ).annotate(
+        balance=F("total_lent") - F("total_returned")
+    ).order_by("-balance", "name")
+
+    # Calculate global stats (only summing positive balances where they owe us money)
+    total_receivables = Decimal("0.0")
+    active_debtors_count = 0
+    for f in friends:
+        if f.balance > 0:
+            total_receivables += f.balance
+            active_debtors_count += 1
+
+    selected_friend = None
+    transactions = []
+    friend_balance = Decimal("0.0")
+    
+    friend_form = CreditFriendForm()
+    transaction_form = CreditTransactionForm()
+
+    if friend_id:
+        selected_friend = get_object_or_404(CreditFriend, id=friend_id, user=request.user)
+        # Fetch transactions for this friend
+        transactions = selected_friend.transactions.all()
+        # Calculate selected friend's balance
+        lent = transactions.filter(transaction_type="GIVE").aggregate(Sum("amount"))["amount__sum"] or Decimal("0.0")
+        returned = transactions.filter(transaction_type="RECEIVE").aggregate(Sum("amount"))["amount__sum"] or Decimal("0.0")
+        friend_balance = lent - returned
+    else:
+        # If no friend selected, get the last 10 transactions overall for this user
+        transactions = CreditTransaction.objects.filter(friend__user=request.user).select_related("friend")[:10]
+
+    context = {
+        "friends": friends,
+        "selected_friend": selected_friend,
+        "transactions": transactions,
+        "friend_balance": friend_balance,
+        "total_receivables": total_receivables,
+        "active_debtors_count": active_debtors_count,
+        "friend_form": friend_form,
+        "transaction_form": transaction_form,
+    }
+    return render(request, "chitfund/credits/dashboard.html", context)
+
+
+@login_required
+@require_POST
+def add_friend(request):
+    form = CreditFriendForm(request.POST)
+    if form.is_valid():
+        friend = form.save(commit=False)
+        friend.user = request.user
+        friend.save()
+        messages.success(request, f"Friend '{friend.name}' added successfully.")
+        return redirect("credits-detail", friend_id=friend.id)
+    else:
+        for field, errors in form.errors.items():
+            for error in errors:
+                messages.error(request, f"{field.capitalize()}: {error}")
+    return redirect("credits-dashboard")
+
+
+@login_required
+@require_POST
+def add_transaction(request, friend_id):
+    friend = get_object_or_404(CreditFriend, id=friend_id, user=request.user)
+    form = CreditTransactionForm(request.POST)
+    if form.is_valid():
+        transaction = form.save(commit=False)
+        transaction.friend = friend
+        transaction.save()
+        
+        type_str = "Lent" if transaction.transaction_type == "GIVE" else "Returned"
+        messages.success(
+            request, 
+            f"Recorded Rs. {transaction.amount} as {type_str} for {friend.name}."
+        )
+    else:
+        for field, errors in form.errors.items():
+            for error in errors:
+                messages.error(request, f"Error: {error}")
+    return redirect("credits-detail", friend_id=friend.id)
+
+
+@login_required
+def delete_friend(request, friend_id):
+    friend = get_object_or_404(CreditFriend, id=friend_id, user=request.user)
+    name = friend.name
+    friend.delete()
+    messages.success(request, f"Friend '{name}' and all their transactions deleted.")
+    return redirect("credits-dashboard")
+
+
+@login_required
+def delete_transaction(request, transaction_id):
+    transaction = get_object_or_404(CreditTransaction, id=transaction_id, friend__user=request.user)
+    friend_id = transaction.friend.id
+    amount = transaction.amount
+    type_str = "Lent" if transaction.transaction_type == "GIVE" else "Returned"
+    transaction.delete()
+    messages.success(request, f"Deleted {type_str} transaction of Rs. {amount}.")
+    return redirect("credits-detail", friend_id=friend_id)
+
+
+# ==============================================================================
+# Daily Finance Tracker Views
+# ==============================================================================
+
+@login_required
+def daily_finance_dashboard(request):
+    query = request.GET.get("q")
+    show_completed = request.GET.get("completed") == "true"
+    selected_date = _parse_selected_date(request)
+    local_today = _local_today()
+    is_viewing_today = selected_date == local_today
+    is_future_date = selected_date > local_today
+    
+    clients = DailyFinanceClient.objects.filter(user=request.user)
+    if query:
+        clients = clients.filter(Q(name__icontains=query) | Q(phone__icontains=query))
+    
+    # Pre-fetch payments count for each client to calculate progress
+    active_clients = clients.filter(is_active=True)
+    completed_clients = clients.filter(is_active=False)
+    
+    # Calculate global stats across all active loans
+    stats = active_clients.aggregate(
+        total_asked=Sum("asked_amount"),
+        total_given=Sum("given_amount"),
+        total_interest=Sum("interest_amount"),
+    )
+    
+    total_asked = stats["total_asked"] or Decimal("0.00")
+    total_given = stats["total_given"] or Decimal("0.00")
+    total_interest = stats["total_interest"] or Decimal("0.00")
+    
+    collection_statuses = [
+        DailyFinancePayment.PaymentStatus.PAID,
+        DailyFinancePayment.PaymentStatus.PARTIAL,
+    ]
+
+    # Total collected across all active clients
+    total_collected = DailyFinancePayment.objects.filter(
+        client__user=request.user,
+        client__is_active=True,
+        status__in=collection_statuses,
+    ).aggregate(total=Sum("amount_paid"))["total"] or Decimal("0.00")
+    
+    total_remaining = total_asked - total_collected
+    
+    # Selected day's collections stats
+    day_payments = DailyFinancePayment.objects.filter(
+        client__user=request.user,
+        client__is_active=True,
+        date=selected_date,
+    )
+    day_collected_payments = day_payments.filter(status__in=collection_statuses)
+    day_paid_client_ids = set(day_collected_payments.values_list("client_id", flat=True))
+    day_payment_map = {p.client_id: p for p in day_payments}
+    
+    collectable_day_clients = [
+        c for c in active_clients if _daily_finance_collection_start(c) <= selected_date
+    ]
+    day_expected = sum((c.daily_installment for c in collectable_day_clients), start=Decimal("0.00"))
+    day_collected = day_collected_payments.aggregate(
+        total=Sum("amount_paid")
+    )["total"] or Decimal("0.00")
+    
+    # Process client list with calculated stats
+    display_clients = []
+    target_clients = completed_clients if show_completed else active_clients
+    
+    for c in target_clients:
+        payments = c.payments.filter(status__in=collection_statuses)
+        paid_count = payments.count()
+        amt_paid = payments.aggregate(total=Sum("amount_paid"))["total"] or Decimal("0.00")
+        
+        collection_started = _daily_finance_collection_start(c) <= selected_date
+        selected_day_payment = day_payment_map.get(c.id) if not show_completed else None
+        selected_day_status = (
+            selected_day_payment.status
+            if selected_day_payment
+            else DailyFinancePayment.PaymentStatus.UNPAID
+        )
+        selected_day_amount = (
+            selected_day_payment.amount_paid
+            if selected_day_payment
+            else Decimal("0.00")
+        )
+        progress_pct = (amt_paid / c.asked_amount) * 100 if c.asked_amount > 0 else 0
+        progress_pct = min(progress_pct, Decimal("100.0"))
+        
+        display_clients.append({
+            "client": c,
+            "paid_days": paid_count,
+            "amount_paid": amt_paid,
+            "remaining_amount": c.asked_amount - amt_paid,
+            "progress_percent": round(progress_pct, 1),
+            "collection_started": collection_started,
+            "selected_day_status": selected_day_status,
+            "selected_day_amount": selected_day_amount,
+        })
+    
+    context = {
+        "clients": display_clients,
+        "show_completed": show_completed,
+        "query": query or "",
+        "total_asked": total_asked,
+        "total_given": total_given,
+        "total_interest": total_interest,
+        "total_collected": total_collected,
+        "total_remaining": total_remaining,
+        "selected_date": selected_date,
+        "local_today": local_today,
+        "is_viewing_today": is_viewing_today,
+        "is_future_date": is_future_date,
+        "day_expected": day_expected,
+        "day_collected": day_collected,
+        "day_paid_count": len(day_paid_client_ids),
+        "total_active_count": active_clients.count(),
+    }
+    
+    return render(request, "chitfund/daily_finance/dashboard.html", context)
+
+
+@login_required
+def daily_finance_client_detail(request, client_id):
+    client = get_object_or_404(DailyFinanceClient, id=client_id, user=request.user)
+    
+    collection_statuses = [
+        DailyFinancePayment.PaymentStatus.PAID,
+        DailyFinancePayment.PaymentStatus.PARTIAL,
+    ]
+
+    # Load all payments for this client
+    db_payments = list(client.payments.all())
+    payment_map = {p.date: p for p in db_payments}
+    
+    total_paid = sum(
+        (p.amount_paid for p in db_payments if p.status in collection_statuses),
+        start=Decimal("0.00"),
+    )
+    remaining_balance = client.asked_amount - total_paid
+
+    # Generate the original schedule, then extend it when collections continue.
+    days = []
+    start = _daily_finance_collection_start(client)
+    today = _local_today()
+    scheduled_days = max(client.duration_days, 1)
+    elapsed_days = (today - start).days + 1 if today >= start else 0
+    latest_payment_date = max((p.date for p in db_payments), default=None)
+    latest_payment_day = (
+        (latest_payment_date - start).days + 1
+        if latest_payment_date and latest_payment_date >= start
+        else 0
+    )
+
+    if client.is_active and remaining_balance > 0:
+        ledger_days = max(scheduled_days, elapsed_days, latest_payment_day)
+    else:
+        ledger_days = max(scheduled_days, latest_payment_day)
+    
+    paid_days_count = 0
+    missed_days_count = 0
+    
+    for i in range(ledger_days):
+        day_date = start + timedelta(days=i)
+        payment = payment_map.get(day_date)
+        
+        # Determine status
+        if payment:
+            status = payment.status
+            amt = payment.amount_paid
+            notes = payment.notes
+            if status == DailyFinancePayment.PaymentStatus.PAID:
+                paid_days_count += 1
+        else:
+            amt = Decimal("0.00")
+            notes = ""
+            if day_date < today:
+                status = "MISSED"
+                missed_days_count += 1
+            else:
+                status = "FUTURE"
+        
+        days.append({
+            "day_number": i + 1,
+            "date": day_date,
+            "status": status,
+            "amount_paid": amt,
+            "notes": notes,
+        })
+        
+    progress_pct = (total_paid / client.asked_amount) * 100 if client.asked_amount > 0 else 0
+    progress_pct = min(progress_pct, Decimal("100.0"))
+    
+    # Determine general client financial health status
+    scheduled_elapsed = max(0, min(elapsed_days, scheduled_days))
+    expected_by_today = min(
+        client.asked_amount,
+        client.daily_installment * Decimal(scheduled_elapsed),
+    )
+    
+    if client.is_active:
+        if remaining_balance <= 0:
+            health_status = "Fully Paid (Complete)"
+            health_color = "green"
+        elif total_paid >= expected_by_today:
+            health_status = "On Track"
+            health_color = "indigo"
+        elif total_paid >= max(Decimal("0.00"), expected_by_today - (client.daily_installment * Decimal("2"))):
+            health_status = "Slightly Behind"
+            health_color = "yellow"
+        else:
+            health_status = "Critical (Behind)"
+            health_color = "red"
+    else:
+        health_status = "Completed"
+        health_color = "gray"
+        
+    context = {
+        "client": client,
+        "days": days,
+        "total_paid": total_paid,
+        "remaining_balance": remaining_balance,
+        "paid_days_count": paid_days_count,
+        "missed_days_count": missed_days_count,
+        "progress_percent": round(progress_pct, 1),
+        "health_status": health_status,
+        "health_color": health_color,
+        "days_elapsed": elapsed_days,
+        "scheduled_days": scheduled_days,
+        "ledger_days": ledger_days,
+        "collection_start_date": start,
+        "today": today,
+    }
+    
+    return render(request, "chitfund/daily_finance/client_detail.html", context)
+
+
+@login_required
+def daily_finance_client_create(request):
+    if request.method == "POST":
+        form = DailyFinanceClientForm(request.POST)
+        if form.is_valid():
+            client = form.save(commit=False)
+            client.user = request.user
+            # Collections begin the day after the loan date.
+            client.end_date = _daily_finance_planned_end(client)
+            client.save()
+            messages.success(request, f"Daily Finance Client '{client.name}' added successfully.")
+            return redirect("daily-finance-dashboard")
+    else:
+        form = DailyFinanceClientForm(initial={
+            "start_date": _local_today(),
+            "interest_rate_percent": Decimal("5.00"),
+            "duration_days": 100,
+        })
+        
+    return render(request, "chitfund/daily_finance/client_form.html", {
+        "form": form,
+        "title": "Add Daily Finance Client",
+    })
+
+
+@login_required
+def daily_finance_client_edit(request, client_id):
+    client = get_object_or_404(DailyFinanceClient, id=client_id, user=request.user)
+    if request.method == "POST":
+        form = DailyFinanceClientForm(request.POST, instance=client)
+        if form.is_valid():
+            client = form.save(commit=False)
+            # Collections begin the day after the loan date.
+            client.end_date = _daily_finance_planned_end(client)
+            client.save()
+            messages.success(request, f"Client '{client.name}' updated successfully.")
+            return redirect("daily-finance-client-detail", client_id=client.id)
+    else:
+        form = DailyFinanceClientForm(instance=client)
+        
+    return render(request, "chitfund/daily_finance/client_form.html", {
+        "form": form,
+        "title": f"Edit Client: {client.name}",
+    })
+
+
+@login_required
+def daily_finance_client_delete(request, client_id):
+    client = get_object_or_404(DailyFinanceClient, id=client_id, user=request.user)
+    name = client.name
+    client.delete()
+    messages.success(request, f"Daily Finance Client '{name}' and all payment logs deleted.")
+    return redirect("daily-finance-dashboard")
+
+
+@login_required
+@require_POST
+def daily_finance_toggle_today_payment(request, client_id):
+    client = get_object_or_404(DailyFinanceClient, id=client_id, user=request.user)
+    selected_date = _parse_selected_date(request)
+    local_today = _local_today()
+    requested_status = request.POST.get("status")
+
+    if selected_date > local_today:
+        messages.warning(request, "You cannot mark payments for a future date.")
+        return redirect(_daily_finance_redirect_url(request, selected_date))
+
+    if selected_date < _daily_finance_collection_start(client):
+        messages.warning(request, "Collection starts from the day after the loan date.")
+        return redirect(_daily_finance_redirect_url(request, selected_date))
+    
+    payment = DailyFinancePayment.objects.filter(client=client, date=selected_date).first()
+
+    if requested_status:
+        valid_statuses = {
+            DailyFinancePayment.PaymentStatus.PAID,
+            DailyFinancePayment.PaymentStatus.PARTIAL,
+            DailyFinancePayment.PaymentStatus.UNPAID,
+        }
+        if requested_status not in valid_statuses:
+            messages.warning(request, "Invalid payment status.")
+            return redirect(_daily_finance_redirect_url(request, selected_date))
+
+        if requested_status == DailyFinancePayment.PaymentStatus.UNPAID:
+            if payment:
+                payment.delete()
+            return redirect(_daily_finance_redirect_url(request, selected_date))
+
+        amount_str = request.POST.get("amount_paid")
+        try:
+            amount = Decimal(amount_str) if amount_str else client.daily_installment
+        except (ValueError, TypeError):
+            messages.warning(request, "Invalid payment amount.")
+            return redirect(_daily_finance_redirect_url(request, selected_date))
+
+        if amount < Decimal("0.00"):
+            messages.warning(request, "Payment amount cannot be negative.")
+            return redirect(_daily_finance_redirect_url(request, selected_date))
+
+        if requested_status == DailyFinancePayment.PaymentStatus.PAID and not amount_str:
+            amount = client.daily_installment
+
+        if payment:
+            payment.status = requested_status
+            payment.amount_paid = amount
+            payment.save()
+        else:
+            DailyFinancePayment.objects.create(
+                client=client,
+                date=selected_date,
+                amount_paid=amount,
+                status=requested_status,
+            )
+
+        return redirect(_daily_finance_redirect_url(request, selected_date))
+    
+    if payment:
+        if payment.status == DailyFinancePayment.PaymentStatus.PAID:
+            # Revert to unpaid (delete payment record)
+            payment.delete()
+            # If the loan was automatically marked inactive, reactivate it if needed
+            # (though normally remains active until user changes status)
+        else:
+            # Mark paid
+            payment.status = DailyFinancePayment.PaymentStatus.PAID
+            payment.amount_paid = client.daily_installment
+            payment.save()
+    else:
+        # Create paid payment record for today
+        DailyFinancePayment.objects.create(
+            client=client,
+            date=selected_date,
+            amount_paid=client.daily_installment,
+            status=DailyFinancePayment.PaymentStatus.PAID,
+        )
+        
+    return redirect(_daily_finance_redirect_url(request, selected_date))
+
+
+@login_required
+@require_POST
+def daily_finance_update_day_payment(request, client_id):
+    client = get_object_or_404(DailyFinanceClient, id=client_id, user=request.user)
+    
+    date_str = request.POST.get("date")
+    amount_str = request.POST.get("amount_paid")
+    status = request.POST.get("status")
+    notes = request.POST.get("notes", "")
+    
+    try:
+        payment_date = date.fromisoformat(date_str)
+        amount = Decimal(amount_str) if amount_str else client.daily_installment
+    except (ValueError, TypeError) as exc:
+        messages.error(request, "Invalid payment values.")
+        return redirect("daily-finance-client-detail", client_id=client.id)
+
+    if payment_date < _daily_finance_collection_start(client):
+        messages.error(request, "Collection starts from the day after the loan date.")
+        return redirect("daily-finance-client-detail", client_id=client.id)
+        
+    payment, created = DailyFinancePayment.objects.get_or_create(
+        client=client,
+        date=payment_date,
+        defaults={
+            "amount_paid": amount,
+            "status": status,
+            "notes": notes,
+        }
+    )
+    
+    if not created:
+        if status == "MISSED" or status == "FUTURE":
+            # Deleting the record represents reverting to default unpaid/future state
+            payment.delete()
+        else:
+            payment.amount_paid = amount
+            payment.status = status
+            payment.notes = notes
+            payment.save()
+            
+    messages.success(request, f"Payment for {payment_date} updated.")
+    return redirect("daily-finance-client-detail", client_id=client.id)

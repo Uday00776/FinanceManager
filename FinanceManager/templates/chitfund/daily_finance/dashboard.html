@@ -1,0 +1,297 @@
+{% extends "chitfund/base.html" %}
+
+{% block content %}
+<div id="daily-finance-container" class="space-y-6">
+
+    <!-- Header Section -->
+    <div class="sm:flex sm:items-center sm:justify-between">
+        <div>
+            <h2 class="text-2xl font-bold leading-7 text-gray-900 dark:text-white sm:truncate sm:tracking-tight transition-colors">
+                Daily Finance Tracker
+            </h2>
+            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Manage daily interest collection clients with extendable payment ledgers</p>
+        </div>
+        
+        <div class="mt-4 sm:ml-4 sm:mt-0 flex flex-wrap items-center gap-3">
+            <a href="{% url 'home' %}" class="inline-flex items-center rounded-md bg-white dark:bg-gray-700 px-3 py-2 text-sm font-semibold text-gray-900 dark:text-gray-200 shadow-sm ring-1 ring-inset ring-gray-300 dark:ring-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors">
+                Back to Home
+            </a>
+            <a href="{% url 'daily-finance-client-create' %}" class="inline-flex items-center rounded-md bg-amber-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-amber-500 transition-colors">
+                Add Client
+            </a>
+            <a href="?completed={% if show_completed %}false{% else %}true{% endif %}" class="inline-flex items-center rounded-md bg-white dark:bg-gray-700 px-3 py-2 text-sm font-semibold text-gray-900 dark:text-gray-200 shadow-sm ring-1 ring-inset ring-gray-300 dark:ring-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors">
+                {% if show_completed %}Show Active{% else %}Show Completed{% endif %}
+            </a>
+        </div>
+    </div>
+
+    <!-- Stats Grid -->
+    <dl class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+        <!-- Active Loans -->
+        <div class="relative overflow-hidden rounded-lg bg-white dark:bg-gray-800 px-4 pb-12 pt-5 shadow sm:px-6 sm:pt-6 transition-colors border border-transparent dark:border-gray-700">
+            <dt>
+                <div class="absolute rounded-md bg-amber-50 dark:bg-amber-900/50 p-3 transition-colors">
+                    <svg class="h-6 w-6 text-amber-600 dark:text-amber-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 21v-8.25M15.75 21v-8.25M8.25 21v-8.25M3 9l9-6 9 6m-1.5 12V10.33l-7.5-5-7.5 5V21m15 0H3" />
+                    </svg>
+                </div>
+                <p class="ml-16 truncate text-sm font-medium text-gray-500 dark:text-gray-400">
+                    {% if show_completed %}Completed Loans{% else %}Active Loans{% endif %}
+                </p>
+            </dt>
+            <dd class="ml-16 flex items-baseline pb-6 sm:pb-7">
+                <div>
+                    <p class="text-2xl font-semibold text-gray-900 dark:text-white">
+                        {% if show_completed %}{{ clients|length }}{% else %}{{ total_active_count }}{% endif %}
+                    </p>
+                    <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">Asked: Rs. {{ total_asked|floatformat:2 }}</p>
+                </div>
+            </dd>
+        </div>
+
+        <!-- Interest Pre-deducted -->
+        <div class="relative overflow-hidden rounded-lg bg-white dark:bg-gray-800 px-4 pb-12 pt-5 shadow sm:px-6 sm:pt-6 transition-colors border border-transparent dark:border-gray-700">
+            <dt>
+                <div class="absolute rounded-md bg-green-50 dark:bg-green-900/40 p-3 transition-colors">
+                    <svg class="h-6 w-6 text-green-600 dark:text-green-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                </div>
+                <p class="ml-16 truncate text-sm font-medium text-gray-500 dark:text-gray-400">Total Interest Pre-deducted</p>
+            </dt>
+            <dd class="ml-16 flex items-baseline pb-6 sm:pb-7">
+                <div>
+                    <p class="text-2xl font-semibold text-green-600 dark:text-green-400">Rs. {{ total_interest|floatformat:2 }}</p>
+                    <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">Net Given: Rs. {{ total_given|floatformat:2 }}</p>
+                </div>
+            </dd>
+        </div>
+
+        <!-- Collections Progress -->
+        <div class="relative overflow-hidden rounded-lg bg-white dark:bg-gray-800 px-4 pb-12 pt-5 shadow sm:px-6 sm:pt-6 transition-colors border border-transparent dark:border-gray-700">
+            <dt>
+                <div class="absolute rounded-md bg-indigo-50 dark:bg-indigo-900/30 p-3 transition-colors">
+                    <svg class="h-6 w-6 text-indigo-600 dark:text-indigo-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12c0 1.268-.63 2.39-1.593 3.068a3.745 3.745 0 01-1.043 3.296 3.745 3.745 0 01-3.296 1.043A3.745 3.745 0 0112 21c-1.268 0-2.39-.63-3.068-1.593a3.746 3.746 0 01-3.296-1.043 3.745 3.745 0 01-1.043-3.296A3.745 3.745 0 013 12c0-1.268.63-2.39 1.593-3.068a3.745 3.745 0 011.043-3.296 3.746 3.746 0 013.296-1.043A3.746 3.746 0 0112 3c1.268 0 2.39.63 3.068 1.593a3.746 3.746 0 013.296 1.043 3.746 3.746 0 011.043 3.296A3.745 3.745 0 0121 12z" />
+                    </svg>
+                </div>
+                <p class="ml-16 truncate text-sm font-medium text-gray-500 dark:text-gray-400">Collected Outstanding</p>
+            </dt>
+            <dd class="ml-16 flex flex-col pb-6 sm:pb-7">
+                <p class="text-2xl font-semibold text-indigo-600 dark:text-indigo-400">Rs. {{ total_collected|floatformat:2 }}</p>
+                <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">Remaining to Collect: Rs. {{ total_remaining|floatformat:2 }}</p>
+            </dd>
+        </div>
+
+        <!-- Today's Progress -->
+        <div class="relative overflow-hidden rounded-lg bg-white dark:bg-gray-800 px-4 pb-12 pt-5 shadow sm:px-6 sm:pt-6 transition-colors border border-transparent dark:border-gray-700">
+            <dt>
+                <div class="absolute rounded-md bg-amber-50 dark:bg-amber-900/40 p-3 transition-colors">
+                    <svg class="h-6 w-6 text-amber-600 dark:text-amber-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5m-9-6h.008v.008H12v-.008zM12 15h.008v.008H12V15zm0 2.25h.008v.008H12v-.008zM9.75 15h.008v.008H9.75V15zm0 2.25h.008v.008H9.75v-.008zM7.5 15h.008v.008H7.5V15zm0 2.25h.008v.008H7.5v-.008zm6.75-4.5h.008v.008h-.008v-.008zm0 2.25h.008v.008h-.008V15zm0 2.25h.008v.008h-.008v-.008zm2.25-4.5h.008v.008H16.5v-.008zm0 2.25h.008v.008H16.5V15z" />
+                    </svg>
+                </div>
+                <p class="ml-16 truncate text-sm font-medium text-gray-500 dark:text-gray-400">
+                    {% if is_viewing_today %}Today's Collection{% else %}Collection on {{ selected_date|date:"M d, Y" }}{% endif %}
+                </p>
+            </dt>
+            <dd class="ml-16 flex flex-col pb-6 sm:pb-7">
+                <p class="text-2xl font-semibold text-amber-600 dark:text-amber-400">
+                    Rs. {{ day_collected|floatformat:2 }}
+                </p>
+                <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                    {{ day_paid_count }}/{{ total_active_count }} clients paid
+                    {% if is_viewing_today %}today{% else %}on this date{% endif %}
+                    (Expected: Rs. {{ day_expected|floatformat:2 }})
+                </p>
+            </dd>
+        </div>
+    </dl>
+
+    <!-- Search & Filters -->
+    <div class="mt-8 bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 transition-colors">
+        <form method="get" class="flex flex-col lg:flex-row gap-3 lg:items-end">
+            <input type="hidden" name="completed" value="{% if show_completed %}true{% else %}false{% endif %}">
+            <div class="flex flex-col gap-1 min-w-[180px]">
+                <label for="date" class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Select Date</label>
+                <input type="date" id="date" name="date" value="{{ selected_date|date:'Y-m-d' }}" max="{{ local_today|date:'Y-m-d' }}"
+                       onchange="this.form.submit()"
+                       class="block w-full rounded-md border-0 py-2 px-3 text-gray-900 dark:text-white dark:bg-gray-700 ring-1 ring-inset ring-gray-300 dark:ring-gray-600 focus:ring-2 focus:ring-inset focus:ring-amber-500 text-sm transition-colors">
+            </div>
+            {% if not is_viewing_today %}
+            <a href="?completed={% if show_completed %}true{% else %}false{% endif %}{% if query %}&q={{ query|urlencode }}{% endif %}"
+               class="inline-flex items-center justify-center rounded-md bg-amber-50 dark:bg-amber-900/30 px-3 py-2 text-sm font-semibold text-amber-700 dark:text-amber-300 ring-1 ring-inset ring-amber-600/20 hover:bg-amber-100 dark:hover:bg-amber-900/50 transition-colors">
+                Jump to Today
+            </a>
+            {% endif %}
+            <div class="relative flex-grow">
+                <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                    <svg class="h-5 w-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                        <path fill-rule="evenodd" d="M9 3.5a5.5 5.5 0 100 11 5.5 5.5 0 000-11zM2 9a7 7 0 1112.452 4.391l3.328 3.329a.75.75 0 11-1.06 1.06l-3.329-3.328A7 7 0 012 9z" clip-rule="evenodd" />
+                    </svg>
+                </div>
+                <input type="text" name="q" value="{{ query }}" placeholder="Search client name or phone..." 
+                       class="block w-full rounded-md border-0 py-2 pl-10 pr-3 text-gray-900 dark:text-white dark:bg-gray-700 ring-1 ring-inset ring-gray-300 dark:ring-gray-600 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-amber-500 text-sm sm:leading-6 transition-colors">
+            </div>
+            <div class="flex gap-2">
+                <button type="submit" class="w-full sm:w-auto inline-flex justify-center items-center rounded-md bg-amber-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-amber-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-600 transition-colors">
+                    Search
+                </button>
+                {% if query %}
+                    <a href="?completed={% if show_completed %}true{% else %}false{% endif %}{% if not is_viewing_today %}&date={{ selected_date|date:'Y-m-d' }}{% endif %}" class="inline-flex items-center rounded-md bg-white dark:bg-gray-700 px-3 py-2 text-sm font-semibold text-gray-900 dark:text-gray-200 shadow-sm ring-1 ring-inset ring-gray-300 dark:ring-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors">
+                        Clear
+                    </a>
+                {% endif %}
+            </div>
+        </form>
+    </div>
+
+    <!-- Client Table Section -->
+    <div class="mt-8 flow-root">
+        <div class="-mx-4 -my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
+            <div class="inline-block min-w-full py-2 align-middle sm:px-6 lg:px-8">
+                <div class="overflow-hidden shadow ring-1 ring-black ring-opacity-5 dark:ring-white dark:ring-opacity-10 sm:rounded-lg">
+                    <table class="min-w-full divide-y divide-gray-300 dark:divide-gray-700">
+                        <thead class="bg-gray-50 dark:bg-gray-800">
+                            <tr>
+                                <th scope="col" class="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 dark:text-gray-200 sm:pl-6">Client</th>
+                                <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-gray-200">Contact</th>
+                                <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-gray-200">Financials (Asked / Given / Int)</th>
+                                <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-gray-200">Installment</th>
+                                <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-gray-200">Progress</th>
+                                <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-gray-200">
+                                    {% if is_viewing_today %}Paid Today?{% else %}Paid on {{ selected_date|date:"M d" }}?{% endif %}
+                                </th>
+                                <th scope="col" class="relative py-3.5 pl-3 pr-4 sm:pr-6">
+                                    <span class="sr-only">Actions</span>
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-gray-800">
+                            {% for c in clients %}
+                            <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                                <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 dark:text-gray-100 sm:pl-6">
+                                    <a href="{% url 'daily-finance-client-detail' c.client.id %}" class="text-amber-600 hover:text-amber-500 font-semibold transition-colors">
+                                        {{ c.client.name }}
+                                    </a>
+                                </td>
+                                <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-400">
+                                    {{ c.client.phone }}
+                                </td>
+                                <td class="whitespace-nowrap px-3 py-4 text-sm">
+                                    <div class="text-gray-900 dark:text-white font-medium">Rs. {{ c.client.asked_amount|floatformat:0 }}</div>
+                                    <div class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                                        Given: {{ c.client.given_amount|floatformat:0 }} | Int: {{ c.client.interest_amount|floatformat:0 }}
+                                    </div>
+                                </td>
+                                <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-700 dark:text-gray-300 font-semibold">
+                                    Rs. {{ c.client.daily_installment }}/day
+                                </td>
+                                <td class="px-3 py-4 text-sm">
+                                    <div class="flex items-center gap-2">
+                                        <div class="w-24 bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                                            <div class="bg-amber-500 h-2 rounded-full transition-all duration-300" style="width: {{ c.progress_percent }}%"></div>
+                                        </div>
+                                        <span class="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap font-medium">
+                                            {{ c.progress_percent }}% ({{ c.paid_days }} collection days)
+                                        </span>
+                                    </div>
+                                    <div class="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                                        Collected: Rs. {{ c.amount_paid|floatformat:0 }} | Bal: Rs. {{ c.remaining_amount|floatformat:0 }}
+                                    </div>
+                                </td>
+                                <td class="whitespace-nowrap px-3 py-4 text-sm">
+                                    {% if not show_completed and c.collection_started and not is_future_date %}
+                                    <form method="post" action="{% url 'daily-finance-toggle-today' c.client.id %}" data-toggle-daily-payment-form class="flex flex-wrap items-center gap-2">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="date" value="{{ selected_date|date:'Y-m-d' }}">
+                                        <select name="status" aria-label="Payment status"
+                                                class="rounded-md border-0 py-1.5 pl-2 pr-8 text-xs font-semibold text-gray-900 dark:text-white dark:bg-gray-700 ring-1 ring-inset ring-gray-300 dark:ring-gray-600 focus:ring-2 focus:ring-amber-500">
+                                            <option value="PAID" {% if c.selected_day_status == "PAID" %}selected{% endif %}>Paid</option>
+                                            <option value="PARTIAL" {% if c.selected_day_status == "PARTIAL" %}selected{% endif %}>Partially Paid</option>
+                                            <option value="UNPAID" {% if c.selected_day_status == "UNPAID" %}selected{% endif %}>Not Paid</option>
+                                        </select>
+                                        <input type="number" name="amount_paid" step="0.01" min="0"
+                                               value="{% if c.selected_day_status == 'UNPAID' %}{{ c.client.daily_installment }}{% else %}{{ c.selected_day_amount }}{% endif %}"
+                                               aria-label="Amount paid"
+                                               class="w-24 rounded-md border-0 py-1.5 px-2 text-xs text-gray-900 dark:text-white dark:bg-gray-700 ring-1 ring-inset ring-gray-300 dark:ring-gray-600 focus:ring-2 focus:ring-amber-500">
+                                        <button type="submit" class="inline-flex items-center rounded-md bg-amber-600 px-2.5 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-amber-500 focus:ring-2 focus:ring-amber-500 transition-colors">
+                                            Save
+                                        </button>
+                                    </form>
+                                    {% elif not show_completed and is_future_date %}
+                                        <span class="inline-flex items-center rounded-md bg-gray-50 dark:bg-gray-700 px-2 py-1 text-xs font-medium text-gray-500 dark:text-gray-400 ring-1 ring-inset ring-gray-500/10">Future Date</span>
+                                    {% elif not show_completed %}
+                                        <span class="inline-flex items-center rounded-md bg-amber-50 dark:bg-amber-900/30 px-2 py-1 text-xs font-medium text-amber-700 dark:text-amber-300 ring-1 ring-inset ring-amber-600/20">Starts Tomorrow</span>
+                                    {% else %}
+                                        <span class="inline-flex items-center rounded-md bg-gray-50 dark:bg-gray-700 px-2 py-1 text-xs font-medium text-gray-600 dark:text-gray-300 ring-1 ring-inset ring-gray-500/10">Completed</span>
+                                    {% endif %}
+                                </td>
+                                <td class="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
+                                    <div class="flex items-center justify-end gap-3">
+                                        <a href="{% url 'daily-finance-client-detail' c.client.id %}" class="text-amber-600 hover:text-amber-500 transition-colors">View Details</a>
+                                        <a href="{% url 'daily-finance-client-edit' c.client.id %}" class="text-gray-600 hover:text-gray-500 dark:text-gray-400 dark:hover:text-gray-300 transition-colors">Edit</a>
+                                        <a href="{% url 'daily-finance-client-delete' c.client.id %}" onclick="return confirm('Are you sure you want to delete client {{ c.client.name }} and all their daily payment records?');" class="text-red-600 hover:text-red-500 transition-colors">Delete</a>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="7" class="whitespace-nowrap px-4 py-8 text-center text-sm text-gray-500 dark:text-gray-400">
+                                    No daily finance clients found.
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('submit', function(e) {
+    const form = e.target.closest('[data-toggle-daily-payment-form]');
+    if (!form) return;
+    
+    e.preventDefault();
+    
+    // Disable the button to prevent multiple submissions and show feedback
+    const button = form.querySelector('button');
+    if (button) {
+        button.disabled = true;
+        button.style.opacity = '0.5';
+    }
+    
+    const formData = new FormData(form);
+    
+    fetch(form.action, {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Network response was not ok');
+        }
+        return response.text();
+    })
+    .then(html => {
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, 'text/html');
+        const newContent = doc.getElementById('daily-finance-container');
+        const oldContent = document.getElementById('daily-finance-container');
+        if (newContent && oldContent) {
+            oldContent.innerHTML = newContent.innerHTML;
+        }
+    })
+    .catch(error => {
+        console.error('Error toggling payment status:', error);
+        form.submit();
+    });
+});
+</script>
+{% endblock %}
